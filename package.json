@@ -4,6 +4,7 @@
   "private": true,
   "description": "微运动桌宠：像素猫示范坐姿微运动，摸头打卡，本地 streak",
   "type": "module",
+  "main": "dist/main.cjs",
   "scripts": {
     "build": "bun run build:main && bun run build:preload",
     "build:main": "bun build src/main.ts --target=node --format=cjs --outfile=dist/main.cjs",
