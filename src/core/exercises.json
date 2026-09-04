@@ -1,0 +1,72 @@
+[
+  {
+    "id": "heels-raise",
+    "name": "提踵（桌下）",
+    "emoji": "🦶",
+    "cue": "脚跟抬起→落下，15 次",
+    "steps": ["坐姿，双脚踩地", "脚尖不动，脚跟尽量抬起", "缓慢落下，重复 15 次"],
+    "durationSec": 45,
+    "animation": "heels",
+    "meta": { "source": "micro-pet", "shareable": true }
+  },
+  {
+    "id": "chair-squat",
+    "name": "座椅微蹲",
+    "emoji": "🪑",
+    "cue": "屁股离椅 3 秒再坐回，5 次",
+    "steps": ["坐直，双脚踩实", "屁股抬离椅面约 5cm，保持 3 秒", "缓慢坐回，重复 5 次"],
+    "durationSec": 40,
+    "animation": "stretch",
+    "meta": { "source": "micro-pet", "shareable": true }
+  },
+  {
+    "id": "shoulder-blades",
+    "name": "肩胛后缩",
+    "emoji": "💪",
+    "cue": "双肩向后夹紧 5 秒 × 5",
+    "steps": ["双肩自然下垂", "肩胛骨向后向内夹紧，保持 5 秒", "放松，重复 5 次"],
+    "durationSec": 35,
+    "animation": "shoulders",
+    "meta": { "source": "micro-pet", "shareable": true }
+  },
+  {
+    "id": "neck-stretch",
+    "name": "颈部拉伸",
+    "emoji": "🧘",
+    "cue": "头侧倾各 15 秒",
+    "steps": ["右手轻扶头右侧", "头缓慢向左倾，保持 15 秒", "换边重复"],
+    "durationSec": 30,
+    "animation": "neck",
+    "meta": { "source": "micro-pet", "shareable": true }
+  },
+  {
+    "id": "leg-hold",
+    "name": "抬腿保持",
+    "emoji": "🦵",
+    "cue": "坐直双腿并拢抬起离地 10 秒 × 3",
+    "steps": ["坐直，双手扶椅面", "双腿并拢伸直抬离地面", "保持 10 秒，重复 3 次"],
+    "durationSec": 40,
+    "animation": "legs",
+    "meta": { "source": "micro-pet", "shareable": true }
+  },
+  {
+    "id": "wrist-stretch",
+    "name": "手腕伸展",
+    "emoji": "✋",
+    "cue": "掌心向外压 15 秒",
+    "steps": ["手臂前伸，掌心朝外", "另一手轻拉指尖，感到前臂拉伸", "保持 15 秒，换手"],
+    "durationSec": 30,
+    "animation": "wrists",
+    "meta": { "source": "micro-pet", "shareable": true }
+  },
+  {
+    "id": "belly-breath",
+    "name": "收腹呼吸",
+    "emoji": "🌬️",
+    "cue": "吸 4 呼 6，收腹 × 5",
+    "steps": ["坐直，肩放松", "吸气 4 秒，腹部鼓起", "呼气 6 秒，收紧腹部，重复 5 次"],
+    "durationSec": 60,
+    "animation": "breath",
+    "meta": { "source": "micro-pet", "shareable": true }
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "name": "micro-pet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "微运动桌宠：像素猫示范坐姿微运动，摸头打卡，本地 streak",
+  "type": "module",
+  "scripts": {
+    "build": "bun run build:main && bun run build:preload",
+    "build:main": "bun build src/main.ts --target=node --format=cjs --outfile=dist/main.cjs",
+    "build:preload": "bun build src/preload.ts --target=node --format=cjs --outfile=dist/preload.cjs",
+    "start": "bun run build && electron .",
+    "test": "bun test",
+    "typecheck": "bun x tsc --noEmit",
+    "report": "bun run src/bin/micro-pet.ts report"
+  },
+  "dependencies": {
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "latest",
+    "electron": "latest"
+  }
+}
