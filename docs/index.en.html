@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>micro-pet · 微运动桌宠</title>
-<meta name="description" content="一只像素猫，定时示范坐姿微运动——摸头打卡，本地养 streak。陪着你，而非打断你。" />
+<title>micro-pet · Micro-workout Desk Pet</title>
+<meta name="description" content="A pixel cat that demonstrates seated micro-exercises — pet it to check in, grow your streak locally. It accompanies you; it never interrupts you." />
 <style>
   :root {
     --fur: #f2a65a; --ink: #2f2a26; --paper: #fdf9f3; --pink: #f78fb3; --line: #eaddcb;
@@ -17,7 +17,7 @@
   .wrap { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px; }
   .langbar { text-align: right; font-size: 13px; }
   .langbar a { color: #b9722d; text-decoration: none; }
-  header { text-align: center; padding: 30px 0 10px; }
+  header { text-align: center; padding: 20px 0 10px; }
   .logo { font-size: 64px; image-rendering: pixelated; }
   h1 { font-size: 34px; margin: 8px 0 4px; letter-spacing: 1px; }
   .tag { color: #6b5f56; font-size: 17px; }
@@ -48,76 +48,76 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="langbar"><a href="index.en.html" id="lang-switch">English</a></div>
+  <div class="langbar"><a href="index.html" id="lang-switch">简体中文</a></div>
   <header>
     <div class="logo">🐱</div>
-    <h1>micro-pet · 微运动桌宠</h1>
-    <p class="tag">一只像素猫，定时示范坐姿微运动——<b>摸头打卡，本地养 streak</b>。<br/>「陪着你」，而非「打断你」。</p>
+    <h1>micro-pet · Micro-workout Desk Pet</h1>
+    <p class="tag">A pixel cat demonstrates seated micro-exercises — <b>pet it to check in, grow your streak locally</b>.<br/>It accompanies you; it never interrupts you.</p>
   </header>
 
   <div class="shots">
-    <figure><img src="screenshot-idle.png" alt="静候"><figcaption>静候</figcaption></figure>
-    <figure><img src="screenshot-remind.png" alt="提醒"><figcaption>提醒 · 一起来</figcaption></figure>
-    <figure><img src="screenshot-happy.png" alt="打卡"><figcaption>打卡成功</figcaption></figure>
+    <figure><img src="screenshot-idle-en.png" alt="Idle"><figcaption>Idle</figcaption></figure>
+    <figure><img src="screenshot-remind-en.png" alt="Reminder"><figcaption>Reminder · let's go</figcaption></figure>
+    <figure><img src="screenshot-happy-en.png" alt="Checked in"><figcaption>Checked in</figcaption></figure>
   </div>
 
   <div class="card">
-    <h2>安装 <span class="pill">macOS · Apple Silicon</span></h2>
-    <pre><button class="copybtn" data-copy="brew install --cask liyuankui/tap/micro-pet" data-step="brew_install">复制</button><code>brew install --cask liyuankui/tap/micro-pet</code></pre>
-    <p class="hint">未签名应用：首次打开右键 → 打开。也可 <a href="https://github.com/liyuankui/workoutpet/releases" target="_blank">Releases</a> 手动下载。</p>
+    <h2>Install <span class="pill">macOS · Apple Silicon</span></h2>
+    <pre><button class="copybtn" data-copy="brew install --cask liyuankui/tap/micro-pet" data-step="brew_install">Copy</button><code>brew install --cask liyuankui/tap/micro-pet</code></pre>
+    <p class="hint">Unsigned app: right-click → Open on first launch. Manual download from <a href="https://github.com/liyuankui/workoutpet/releases" target="_blank">Releases</a> also works.</p>
   </div>
 
   <div class="card">
-    <h2>🤖 Paste to your agent <span class="pill">让 AI 替你装 + 定制</span></h2>
-    <pre><button class="copybtn" data-step="pya_copy">复制</button><code>请按这两个文档帮我安装并配置 micro-pet 微运动桌宠：
-1. 安装：https://raw.githubusercontent.com/liyuankui/workoutpet/master/docs/agent-install-prompt.md
-2. 装好后定制提醒计划：https://raw.githubusercontent.com/liyuankui/workoutpet/master/docs/agent-setup-prompt.md</code></pre>
-    <p class="hint">粘给 ZCode / Claude / WorkBuddy 等任意 AI 助手——它会自己抓文档、装好验证，再<b>采访你</b>（作息/倦怠/目的/剂量）生成专属调度。</p>
+    <h2>🤖 Paste to your agent <span class="pill">Let AI install &amp; customize</span></h2>
+    <pre><button class="copybtn" data-step="pya_copy">Copy</button><code>Please install and configure the micro-pet desk pet for me following these two documents:
+1. Install: https://raw.githubusercontent.com/liyuankui/workoutpet/master/docs/agent-install-prompt.en.md
+2. Then customize my reminder schedule: https://raw.githubusercontent.com/liyuankui/workoutpet/master/docs/agent-setup-prompt.en.md</code></pre>
+    <p class="hint">Paste to any AI assistant (ZCode / Claude / WorkBuddy) — it fetches the docs, installs, verifies, then <b>interviews you</b> (routine / slump / goals / dose) to generate your personal schedule.</p>
   </div>
 
   <div class="grid">
-    <div class="card"><h2>🐾 陪你不打断</h2><p>非模态提醒：猫自己在角落做动作，看到就跟。2 分钟不理它就安静回去，零弹窗零通知。</p></div>
-    <div class="card"><h2>⚔️ 四类均衡</h2><p>下肢 / 肩颈 / 手腕 / 核心自动轮换，最久未练优先——不是纯随机，是均衡教练。</p></div>
-    <div class="card"><h2>⏰ 时段调度</h2><p>午饭前后与午后倦怠加密，下班夜间静默。中午打球？那段时间直接静默。</p></div>
-    <div class="card"><h2>💬 配置即对话</h2><p>没有设置面板：和你的 AI 聊聊作息，它生成配置写入，校验生效。</p></div>
-    <div class="card"><h2>🔒 数据全本地</h2><p>streak 存 ~/.micro-pet/streak.json，零账号零云端零遥测（本网页统计除外）。</p></div>
-    <div class="card"><h2>🌏 双语</h2><p>中英界面/动作库/周报，跟随系统或一键切换。</p></div>
+    <div class="card"><h2>🐾 Company, not interruption</h2><p>Non-modal reminders: the cat exercises by itself in the corner. Ignore it for 2 minutes and it quietly goes back. Zero popups, zero notifications.</p></div>
+    <div class="card"><h2>⚔️ Four-category balance</h2><p>Lower body / shoulders-neck / wrists / core rotate automatically, least-recently-trained first — not random, a balanced coach.</p></div>
+    <div class="card"><h2>⏰ Time-window scheduling</h2><p>Denser around lunch and the afternoon slump; silent after work and at night. Midday workouts? That window goes silent.</p></div>
+    <div class="card"><h2>💬 Config as conversation</h2><p>No settings panel: chat with your AI about your routine; it generates the config, validates, applies.</p></div>
+    <div class="card"><h2>🔒 Data stays local</h2><p>Streak lives in ~/.micro-pet/streak.json. No accounts, no cloud. App telemetry is anonymous and one-click opt-out (this page's stats aside).</p></div>
+    <div class="card"><h2>🌏 Bilingual</h2><p>UI / exercise library / weekly report in Chinese and English — follows your system or one-click switch.</p></div>
   </div>
 
   <div class="card">
-    <h2>什么是微运动？</h2>
-    <p>30-60 秒一次的坐姿小动作，见缝插针打断久坐。研究显示：每半小时起身活动 5 分钟可使餐后血糖峰值降 58%；日常零散活动每天 4.4 分钟与全因死亡风险降 26-30% 相关。<a href="https://github.com/liyuankui/workoutpet/blob/master/docs/micro-exercises.md" target="_blank">科普全文 →</a></p>
+    <h2>What are micro-exercises?</h2>
+    <p>30–60 second seated movements slipped into work gaps. Research: 5 minutes of light walking every 30 minutes cuts post-meal glucose spikes by 58%; a median 4.4 min/day of incidental activity is associated with 26–30% lower all-cause mortality. <a href="https://github.com/liyuankui/workoutpet/blob/master/docs/micro-exercises.en.md" target="_blank">Full guide →</a></p>
   </div>
 
   <footer>
     <a href="https://github.com/liyuankui/workoutpet" target="_blank">GitHub</a>·
     <a href="https://github.com/liyuankui/workoutpet/releases" target="_blank">Releases</a>·
-    <a href="https://github.com/liyuankui/workoutpet/blob/master/README.en.md" target="_blank">English</a>·
-    <a href="https://github.com/liyuankui/workoutpet/blob/master/docs/micro-exercises.md" target="_blank">微运动科普</a>
-    <p style="margin-top:10px">用 ❤️ 和一只橘猫制成 · 2026</p>
+    <a href="https://github.com/liyuankui/workoutpet/blob/master/README.md" target="_blank">中文</a>·
+    <a href="https://github.com/liyuankui/workoutpet/blob/master/docs/micro-exercises.en.md" target="_blank">Micro-exercise guide</a>
+    <p style="margin-top:10px">Made with ❤️ and an orange cat · 2026</p>
   </footer>
 </div>
 
 <script>
-// ── 复制按钮 ──
+// ── Copy buttons ──
 document.querySelectorAll(".copybtn").forEach((btn) => {
   btn.addEventListener("click", () => {
     const code = btn.parentElement.querySelector("code");
     const text = btn.dataset.copy || code.textContent;
     navigator.clipboard.writeText(text).then(() => {
       const old = btn.textContent;
-      btn.textContent = "✅ 已复制";
+      btn.textContent = "✅ Copied";
       setTimeout(() => (btn.textContent = old), 1500);
       track("command_copy", { step: btn.dataset.step, text: text.slice(0, 120) });
     });
   });
 });
-document.getElementById("lang-switch").addEventListener("click", () => track("lang_switch", { to: "en" }));
 document.querySelectorAll("footer a, .card a").forEach((a) => {
   a.addEventListener("click", () => track("link_out", { target: a.href.slice(0, 120) }));
 });
+document.getElementById("lang-switch").addEventListener("click", () => track("lang_switch", { to: "zh" }));
 
-// ── PostHog Telemetry（遵循 POSTHOG_USAGE_GUIDE：project 属性区分项目）──
+// ── PostHog Telemetry (POSTHOG_USAGE_GUIDE compliant: project property separates projects) ──
 const POSTHOG_KEY = 'phc_AbKVVXPDZKThtUacCHhFOITuBczUvLmPStN1JAZs93e';
 const POSTHOG_ENDPOINT = 'https://eu.i.posthog.com/capture/';
 const PROJECT = 'micro-pet';
@@ -135,7 +135,7 @@ function track(event, props = {}) {
                 project: PROJECT,
                 url: location.pathname,
                 page: 'index',
-                lang: 'zh',
+                lang: 'en',
                 ...props
             }
         }));

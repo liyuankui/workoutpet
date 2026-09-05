@@ -6,6 +6,7 @@
 | 项 | 值 |
 |----|----|
 | `project` | `micro-pet`（已在指南注册表登记） |
+| 页面 | `index`（中）+ `index.en.html`（英），事件带 `lang: zh/en` |
 | uid | 网页 `localStorage['micro-pet-uid']`；app `~/.micro-pet/uid` |
 | 端点 | `https://eu.i.posthog.com/capture/`（EU；网页 sendBeacon / app fetch） |
 | 本地开发 | 网页 localhost 自动跳过 |
@@ -18,6 +19,7 @@
 | `page_view` | 落地页加载 | `page:'index'` |
 | `command_copy` | 网页复制按钮 | `step`（`brew_install` / `pya_copy`）、`text` |
 | `link_out` | 网页外链点击 | `target` |
+| `lang_switch` | 落地页切换语言 | `to`（`zh`/`en`） |
 | `app_open` | app 启动（app） | `surface:'app'`、`version`、`exercises`、`scheduleWindows` |
 | `remind_fired` | 提醒触发（app） | `surface:'app'`、`exercise` |
 | `check_in` | 摸头打卡（app） | `surface:'app'`、`exercise` |
