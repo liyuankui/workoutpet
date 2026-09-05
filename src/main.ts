@@ -109,8 +109,28 @@ function main() {
     }, 500);
   });
 
-  win.loadFile(join(__dirname, "..", "src", "renderer", "index.html"));
+  win.loadFile(join(__dirname, "..", "src", "renderer", "index.html")).catch((err) =>
+    console.error("[micro-pet] renderer 加载失败:", err),
+  );
+  win.webContents.on("did-finish-load", () => console.log("[micro-pet] renderer 加载成功"));
+  win.webContents.on("did-fail-load", (_e, code, desc) =>
+    console.error(`[micro-pet] renderer 加载失败 code=${code} ${desc}`),
+  );
   if (process.env.MICROPET_DEV) win.webContents.openDevTools({ mode: "detach" });
+
+  // 心跳日志：窗口可见性/尺寸/位置落盘，供无 GUI 权限时端到端验证
+  const heartbeat = () => {
+    try {
+      const b = win.getBounds();
+      mkdirSync(HOME, { recursive: true });
+      writeFileSync(
+        join(HOME, "heartbeat.json"),
+        JSON.stringify({ ts: Date.now(), visible: win.isVisible(), ...b, pet: machine.pet }, null, 2),
+      );
+    } catch { /* 心跳失败不影响运行 */ }
+  };
+  setInterval(heartbeat, 5_000);
+  setTimeout(heartbeat, 2_000);
 
   // 窗口尺寸切换（锚定右下角，猫不动）
   function setSizeAnchored(w: number, h: number) {

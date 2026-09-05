@@ -7,8 +7,8 @@
   "main": "dist/main.cjs",
   "scripts": {
     "build": "bun run build:main && bun run build:preload",
-    "build:main": "bun build src/main.ts --target=node --format=cjs --outfile=dist/main.cjs",
-    "build:preload": "bun build src/preload.ts --target=node --format=cjs --outfile=dist/preload.cjs",
+    "build:main": "bun build src/main.ts --target=node --format=cjs --external electron --outfile=dist/main.cjs",
+    "build:preload": "bun build src/preload.ts --target=node --format=cjs --external electron --outfile=dist/preload.cjs",
     "start": "bun run build && electron .",
     "test": "bun test",
     "typecheck": "bun x tsc --noEmit",
