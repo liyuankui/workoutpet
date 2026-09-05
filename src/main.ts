@@ -1,12 +1,25 @@
 import { app, BrowserWindow, Tray, Menu, clipboard, nativeImage, screen, ipcMain } from "electron";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { createMachine, dispatch, DEFAULT_CONFIG, type MachineConfig, type MachineState } from "./core/stateMachine";
 import { loadExercises, type Exercise } from "./core/exercises";
 import exercisesJson from "./core/exercises.json";
 import { appendCheckIn, currentStreak, readDB, localDateKey } from "./core/streak";
 import { renderReport } from "./core/report";
 import { FRAMES, frameToRGBA } from "./core/pixelcat";
+
+// ---------- boot 日志（最先执行：LS 启动无 stdout，靠它诊断"静默僵尸"） ----------
+const BOOT_LOG = join(process.env.MICROPET_HOME ?? join(homedir(), ".micro-pet"), "boot.log");
+function blog(msg: string) {
+  try {
+    mkdirSync(dirname(BOOT_LOG), { recursive: true });
+    writeFileSync(BOOT_LOG, `[${new Date().toISOString()}] ${msg}\n`, { flag: "a" });
+  } catch { /* 诊断日志自身不许抛 */ }
+}
+blog(`boot pid=${process.pid} argv=${JSON.stringify(process.argv)} defaultApp=${(globalThis as any).process?.type ?? "?"}`);
+process.on("uncaughtException", (err) => blog(`uncaught: ${err.stack}`));
+process.on("unhandledRejection", (r) => blog(`unhandled: ${String(r)}`));
 
 // ---------- 配置（~/.micro-pet/config.json） ----------
 interface AppConfig {
@@ -44,7 +57,8 @@ function safeIntervalMin(v: unknown): number {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.whenReady().then(main).catch((err) => {
+  blog("requesting lock");
+  app.whenReady().then(() => { blog("whenReady"); main(); }).catch((err) => {
     console.error("[micro-pet] fatal:", err);
     app.quit();
   });
