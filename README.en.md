@@ -8,6 +8,10 @@
 |:---:|:---:|:---:|
 | ![idle](docs/screenshot-idle-en.png) | ![remind](docs/screenshot-remind-en.png) | ![happy](docs/screenshot-happy-en.png) |
 
+## What are micro-exercises?
+
+**30–60 second seated movements** (heel raises, shoulder-blade squeezes, belly breathing…) that break up sitting whenever there's a gap — no gear, no time block. Research: 5 minutes of light walking every 30 minutes cuts post-meal glucose spikes by 58%; a median 4.4 min/day of incidental activity is associated with 26–30% lower all-cause mortality. Made for sedentary engineers, knowledge workers, and meeting-marathon survivors. → **[Full guide: definition · science · audience · the 7 built-in exercises](docs/micro-exercises.en.md)**
+
 ## Install (macOS · Apple Silicon)
 
 ```bash
