@@ -101,6 +101,9 @@ export function resolveExercises(
   userRaw: unknown,
   bundledRaw: unknown,
 ): { exercises: Exercise[]; source: "user" | "bundled"; error?: string } {
+  if (userRaw === null || userRaw === undefined) {
+    return { exercises: loadExercises(bundledRaw), source: "bundled" }; // 无用户文件，正常路径
+  }
   try {
     return { exercises: loadExercises(userRaw), source: "user" };
   } catch (err) {
