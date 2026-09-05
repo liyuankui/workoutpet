@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/** micro-pet CLI——默认输出 markdown（LLM/人双友好），--lang en 切英文（F8） */
+/** micro-pet CLI——默认输出 markdown（LLM/人双友好），--lang en 切英文 */
 import { readDB } from "../core/streak";
 import { renderReport } from "../core/report";
 import { loadExercises, resolveExercises } from "../core/exercises";

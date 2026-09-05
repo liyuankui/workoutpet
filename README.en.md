@@ -101,7 +101,7 @@ bun start                    # build & launch
 bun test                     # 50 tests
 ```
 
-Demo mode: `MICROPET_INTERVAL_SEC=5 bun start`.
+Demo mode: `MICROPET_INTERVAL_SEC=5 bun start`. Architecture and design trade-offs live in the `src/` comments.
 
 ## Decision log
 

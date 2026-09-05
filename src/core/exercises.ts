@@ -6,7 +6,7 @@ const LocaleText = z.record(z.string().min(1)).refine((m) => !!m[DEFAULT_LOCALE]
   message: `必须包含 "${DEFAULT_LOCALE}" 字段（回退基准）`,
 });
 
-/** F1 动作库 schema——webhook 共享字段在 meta 预留；F8 起文本为 locale map */
+/** 动作库 schema——webhook 共享字段在 meta 预留；起文本为 locale map */
 export const ExerciseSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/, "id 须为 kebab-case"),
   name: LocaleText,
@@ -50,7 +50,7 @@ export function loadExercises(raw: unknown): Exercise[] {
   return arr as Exercise[];
 }
 
-/** 按语言取本地化视图（缺语言回退 zh-CN，F8 V2） */
+/** 按语言取本地化视图（缺语言回退 zh-CN，V2） */
 export interface LocalizedExercise {
   id: string;
   emoji: string;

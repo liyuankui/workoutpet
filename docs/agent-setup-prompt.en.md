@@ -45,7 +45,7 @@ Rules:
 
 ## Step 3: Validate and apply
 
-1. After writing, validate: `bun run ~/Work/micro-pet/src/bin/micro-pet.ts validate-config` (if brew-installed, self-check JSON syntax + field ranges)
+1. After writing, validate: `bun run src/bin/micro-pet.ts validate-config` (if brew-installed, self-check JSON syntax + field ranges)
 2. Have me restart the app (tray → Quit → reopen)
 3. Verify: `cat ~/.micro-pet/boot.log | tail -3` should show `schedule=N windows`
 4. Show me the final config and your reasoning, under one page

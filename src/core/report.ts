@@ -3,7 +3,7 @@ import { currentStreak, localDateKey, weekReport } from "./streak";
 import { localizeExercise, type Exercise } from "./exercises";
 import { fmt, strings, isLocale, DEFAULT_LOCALE, type Locale } from "./i18n";
 
-/** F5 周报——markdown 输出，双语（F8）；v0.4.0 增每日目标完成度 */
+/** 周报——markdown 输出，双语；v0.4.0 增每日目标完成度 */
 export function renderReport(
   db: StreakDB,
   exercises: readonly Exercise[],

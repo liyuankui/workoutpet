@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
 /**
- * F18 匿名遥测（opt-out）——遵循 POSTHOG_USAGE_GUIDE：
+ * 匿名遥测（opt-out）——遵循 PostHog 多项目规范：
  * project='micro-pet' + surface='app' 区分网页/应用；config.telemetry:false 一键关（关后零网络请求）。
  * 仅 3 事件：app_open / remind_fired / check_in。零 PII：distinct_id 为本地随机文件 uid。
  */

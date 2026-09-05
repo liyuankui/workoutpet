@@ -101,7 +101,7 @@ bun start                    # 构建并启动
 bun test                     # 50 项测试
 ```
 
-演示模式：`MICROPET_INTERVAL_SEC=5 bun start`。架构与产品约束见 `src/` 注释与本地知识库 harness。
+演示模式：`MICROPET_INTERVAL_SEC=5 bun start`。架构与设计取舍见 `src/` 注释。
 
 ## 决策记录
 

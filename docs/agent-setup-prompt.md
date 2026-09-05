@@ -45,7 +45,7 @@
 
 ## 第三步：验证并生效
 
-1. 写入后运行校验：`bun run ~/Work/micro-pet/src/bin/micro-pet.ts validate-config`（或已 brew 安装则检查 JSON 语法 + 字段范围自查）
+1. 写入后运行校验：`bun run src/bin/micro-pet.ts validate-config`（或已 brew 安装则检查 JSON 语法 + 字段范围自查）
 2. 让我重启 app（托盘 → 退出 → 重新打开）
 3. 验证：`cat ~/.micro-pet/boot.log | tail -3` 应出现 `schedule=N windows`
 4. 把最终配置和理由（为什么这么调度）讲给我听，一页以内

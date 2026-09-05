@@ -1,7 +1,7 @@
 import zhCN from "../locales/zh-CN.json";
 import en from "../locales/en.json";
 
-/** F8 多语言——两语言手写映射，不引 i18next（SPEC 软约束） */
+/** 多语言——两语言手写映射，不引 i18next */
 export type Locale = "zh-CN" | "en";
 
 export const DEFAULT_LOCALE: Locale = "zh-CN";
@@ -18,7 +18,7 @@ export function resolveLocale(systemTag: string | undefined): Locale {
 
 type Strings = typeof zhCN;
 
-/** 取整套文案；未知语言回退 zh-CN（F8 V2：缺语言不崩） */
+/** 取整套文案；未知语言回退 zh-CN（V2：缺语言不崩） */
 export function strings(locale: string): Strings {
   return (isLocale(locale) ? LOCALES[locale] : LOCALES[DEFAULT_LOCALE]) as Strings;
 }

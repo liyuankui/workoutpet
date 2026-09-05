@@ -5,7 +5,7 @@ import { pickRandom } from "./exercises";
 export type ExercisePicker = (exercises: readonly Exercise[], rand: () => number) => Exercise;
 
 /**
- * F3 定时提醒状态机（纯逻辑，时钟可注入）
+ * 定时提醒状态机（纯逻辑，时钟可注入）
  * 状态转移：idle →(到点) remind →(摸头) happy →(3s) idle
  *           remind →(2 分钟无人理睬，不催促) idle
  *           idle 状态摸头 = 蹭蹭（wiggle），不打卡

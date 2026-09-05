@@ -1,8 +1,8 @@
 import { pickRandom } from "./exercises";
 
 /**
- * F9 点击互动反应池（纯逻辑，渲染端消费）
- * 变奖赏（variable reward）对抗「三天可爱期」——服务 VISION H3
+ * 点击互动反应池（纯逻辑，渲染端消费）
+ * 变奖赏（variable reward）对抗「三天可爱期」
  */
 export const REACTIONS = ["wiggle", "jump", "meow", "roll"] as const;
 export type Reaction = (typeof REACTIONS)[number];

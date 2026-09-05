@@ -39,7 +39,7 @@ interface AppConfig {
   enabledExercises?: string[];
   /** 时段调度（不同时段不同密度，窗口外静默） */
   schedule?: unknown;
-  /** F18 遥测开关：缺省开，false = 零网络请求 */
+  /** 遥测开关：缺省开，false = 零网络请求 */
   telemetry?: boolean;
 }
 
@@ -47,7 +47,7 @@ const HOME = process.env.MICROPET_HOME ?? join(app.getPath("home"), ".micro-pet"
 const CONFIG_PATH = join(HOME, "config.json");
 const DB_PATH = join(HOME, "streak.json");
 
-/** F18 遥测（opt-out）：关 = 零网络请求；仅 app_open/remind_fired/check_in 三个匿名事件 */
+/** 遥测（opt-out）：关 = 零网络请求；仅 app_open/remind_fired/check_in 三个匿名事件 */
 const APP_VERSION = app.getVersion();
 const telUid = readOrCreateUid(HOME);
 const tel = (event: string, props: Record<string, unknown> = {}) => {
@@ -141,7 +141,7 @@ function main() {
     remindTimeoutMs: Number(process.env.MICROPET_REMIND_TIMEOUT_SEC ?? 0) * 1000 || DEFAULT_CONFIG.remindTimeoutMs,
   };
 
-  // ---------- 窗口（F2：透明置顶、不抢焦点） ----------
+  // ---------- 窗口（：透明置顶、不抢焦点） ----------
   // ⚠️ 禁用 __dirname：bun build 会把它内联成源码目录（src/）而非产物目录（dist/）
   const APP_ROOT = app.getAppPath();
   const win = new BrowserWindow({
@@ -195,7 +195,7 @@ function main() {
   );
   if (process.env.MICROPET_DEV) win.webContents.openDevTools({ mode: "detach" });
 
-  // ---------- 状态机循环（F3/F4） ----------
+  // ---------- 状态机循环 ----------
   let machine: MachineState = createMachine(exercises, Date.now());
 
   // 心跳日志：窗口可见性/尺寸/位置落盘，供无 GUI 权限时端到端验证
@@ -291,7 +291,7 @@ function main() {
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
   ipcMain.on("pet-ready", () => broadcast());
 
-  // ---------- Tray（F2：隐藏/退出 + 演示 + 语言切换 F8） ----------
+  // ---------- Tray（：隐藏/退出 + 演示 + 语言切换 ） ----------
   const icon = nativeImage.createFromBuffer(Buffer.from(frameToRGBA(FRAMES.happy)), {
     width: 16,
     height: 16,

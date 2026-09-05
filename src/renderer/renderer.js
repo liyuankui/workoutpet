@@ -34,7 +34,7 @@ let petState = "idle";
 let locale = "zh-CN";
 let animStart = performance.now();
 
-// F9 点击互动反应
+// 点击互动反应
 let reaction = null;        // { type, start, duration }
 let lastReactAt = 0;
 
@@ -120,10 +120,10 @@ microPet.onState((msg) => {
 canvas.addEventListener("click", () => {
   const now = performance.now();
   if (petState === "remind") {
-    microPet.petClick(); // 打卡走主进程（F4 语义不变）
+    microPet.petClick(); // 打卡走主进程（语义不变）
     return;
   }
-  // F9：idle/happy 点击 → 随机反应池（500ms 节流）
+  // ：idle/happy 点击 → 随机反应池（500ms 节流）
   const r = microPet.react(lastReactAt, now);
   if (!r) return;
   lastReactAt = now;

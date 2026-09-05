@@ -1,6 +1,6 @@
 # micro-pet · PostHog 事件字典
 
-> 遵循 [POSTHOG_USAGE_GUIDE](../../../context/prompt/POSTHOG_USAGE_GUIDE.md)（共享 key 多项目规范）。
+> 遵循 PostHog 多项目规范：共享 key + `project` 属性区分项目。
 > 两个埋点面：**网页落地页**（surface 隐含，`page:'index'`）与 **桌面 app**（`surface:'app'`，opt-out）。
 
 | 项 | 值 |
@@ -34,7 +34,7 @@ WHERE properties.project = 'micro-pet'
   AND timestamp >= now() - INTERVAL 7 DAY
 GROUP BY properties.surface, event ORDER BY cnt DESC
 
--- H1/H2 假设验证原料：提醒→打卡转化（app）
+-- 提醒→打卡转化（app）
 SELECT countIf(event='remind_fired') AS reminds, countIf(event='check_in') AS checkins,
        round(checkins / greatest(reminds,1) * 100, 1) AS conv_pct
 FROM events

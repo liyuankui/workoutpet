@@ -1,5 +1,5 @@
 /**
- * 像素猫 16×16 sprite——美术零投入（Anti-Goal 3），字符画即资产。
+ * 像素猫 16×16 sprite——美术零投入，字符画即资产。
  * 帧校验由 test/pixelcat.test.ts 保证（16 行 × 16 字符 × 已知色板）。
  */
 export const PALETTE: Record<string, string | null> = {
@@ -114,7 +114,7 @@ const STRETCH_B = [
   "................",
 ];
 
-/** 打滚（侧躺，F9 反应池） */
+/** 打滚（侧躺，反应池） */
 const ROLL = [
   "................",
   "................",

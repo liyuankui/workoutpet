@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-/** F5 streak 记录——纯本地，容错读（损坏不 crash） */
+/** streak 记录——纯本地，容错读（损坏不 crash） */
 export interface CheckIn {
   /** 本地日期键 YYYY-MM-DD */
   date: string;

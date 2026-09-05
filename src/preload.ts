@@ -21,9 +21,9 @@ contextBridge.exposeInMainWorld("microPet", {
   ready: () => ipcRenderer.send("pet-ready"),
   // sprite 静态数据（可序列化，供渲染端画像素猫）
   sprites: () => ({ PALETTE, GRID, FRAMES }),
-  // F8 双语文案 + 占位符模板
+  // 双语文案 + 占位符模板
   strings: (locale: string) => strings(locale),
   fmt: (template: string, vars: Record<string, string | number>) => fmt(template, vars),
-  // F9 反应池（纯函数：节流 + 随机）
+  // 反应池（纯函数：节流 + 随机）
   react: (lastReactAt: number, now: number) => react(lastReactAt, now),
 });
