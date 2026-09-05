@@ -68,6 +68,8 @@ function main() {
   };
 
   // ---------- 窗口（F2：透明置顶、不抢焦点） ----------
+  // ⚠️ 禁用 __dirname：bun build 会把它内联成源码目录（src/）而非产物目录（dist/）
+  const APP_ROOT = app.getAppPath();
   const win = new BrowserWindow({
     width: CAT_W,
     height: CAT_H,
@@ -80,7 +82,7 @@ function main() {
     hasShadow: false,
     fullscreenable: false,
     webPreferences: {
-      preload: join(__dirname, "preload.cjs"),
+      preload: join(APP_ROOT, "dist", "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -109,7 +111,7 @@ function main() {
     }, 500);
   });
 
-  win.loadFile(join(__dirname, "..", "src", "renderer", "index.html")).catch((err) =>
+  win.loadFile(join(APP_ROOT, "src", "renderer", "index.html")).catch((err) =>
     console.error("[micro-pet] renderer 加载失败:", err),
   );
   win.webContents.on("did-finish-load", () => console.log("[micro-pet] renderer 加载成功"));
