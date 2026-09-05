@@ -11,8 +11,9 @@ import { FRAMES, frameToRGBA } from "./core/pixelcat";
 // ---------- 配置（~/.micro-pet/config.json） ----------
 interface AppConfig {
   intervalMin: number; // 30-120
-  x?: number;
-  y?: number;
+  /** 猫区右下角坐标（锚定右下存，杜绝 remind 扩窗后重启漂移） */
+  brx?: number;
+  bry?: number;
 }
 
 const HOME = process.env.MICROPET_HOME ?? join(app.getPath("home"), ".micro-pet");
@@ -93,10 +94,10 @@ function main() {
   const wa = screen.getPrimaryDisplay().workArea;
   const defaultX = wa.x + wa.width - CAT_W - 8;
   const defaultY = wa.y + wa.height - CAT_H - 8;
-  if (cfg.x !== undefined && cfg.y !== undefined) {
+  if (cfg.brx !== undefined && cfg.bry !== undefined) {
     // 边界钳制：外接屏拔掉后猫不能落到屏外"消失"
-    const x = Math.min(Math.max(cfg.x, wa.x - CAT_W + 60), wa.x + wa.width - 60);
-    const y = Math.min(Math.max(cfg.y, wa.y - CAT_H + 60), wa.y + wa.height - 60);
+    const x = Math.min(Math.max(cfg.brx - CAT_W, wa.x + 40), wa.x + wa.width - 100);
+    const y = Math.min(Math.max(cfg.bry - CAT_H, wa.y + 40), wa.y + wa.height - 100);
     win.setPosition(x, y, false);
   } else {
     win.setPosition(defaultX, defaultY, false);
@@ -107,7 +108,8 @@ function main() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       const [x, y] = win.getPosition();
-      saveConfig({ x, y }); // OPS：重启位置保持
+      const [w, h] = win.getSize();
+      saveConfig({ brx: x + w, bry: y + h }); // 锚定右下角，重启按 CAT 尺寸恢复不漂移
     }, 500);
   });
 
