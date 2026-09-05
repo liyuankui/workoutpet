@@ -2,7 +2,7 @@
 
 > 一只像素猫，定时在屏幕角落示范坐姿微运动——摸头打卡，本地养 streak。「陪着你」，而非「打断你」。
 
-[English](README.en.md)
+[English](README.en.md) · [🏠 落地页](https://liyuankui.github.io/workoutpet/)
 
 | 静候 | 提醒（一起来） | 打卡成功 |
 |:---:|:---:|:---:|

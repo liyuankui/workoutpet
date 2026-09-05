@@ -2,7 +2,7 @@
 
 > A pixel cat that demonstrates seated micro-exercises in the corner of your screen — pet it to check in, grow your streak locally. It accompanies you; it never interrupts you.
 
-[简体中文](README.md)
+[简体中文](README.md) · [🏠 Landing page](https://liyuankui.github.io/workoutpet/)
 
 | Idle | Reminder (let's go) | Checked in |
 |:---:|:---:|:---:|
