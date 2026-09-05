@@ -11,6 +11,7 @@ import { renderReport } from "./core/report";
 import { FRAMES, frameToRGBA } from "./core/pixelcat";
 import { isLocale, resolveLocale, strings, type Locale } from "./core/i18n";
 import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedule";
+import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemetry";
 
 // ---------- boot 日志（最先执行：LS 启动无 stdout，靠它诊断"静默僵尸"） ----------
 const BOOT_LOG = join(process.env.MICROPET_HOME ?? join(homedir(), ".micro-pet"), "boot.log");
@@ -38,11 +39,20 @@ interface AppConfig {
   enabledExercises?: string[];
   /** 时段调度（不同时段不同密度，窗口外静默） */
   schedule?: unknown;
+  /** F18 遥测开关：缺省开，false = 零网络请求 */
+  telemetry?: boolean;
 }
 
 const HOME = process.env.MICROPET_HOME ?? join(app.getPath("home"), ".micro-pet");
 const CONFIG_PATH = join(HOME, "config.json");
 const DB_PATH = join(HOME, "streak.json");
+
+/** F18 遥测（opt-out）：关 = 零网络请求；仅 app_open/remind_fired/check_in 三个匿名事件 */
+const APP_VERSION = app.getVersion();
+const telUid = readOrCreateUid(HOME);
+const tel = (event: string, props: Record<string, unknown> = {}) => {
+  if (telemetryEnabled(readConfig())) void sendTelemetry(event, props, telUid, APP_VERSION);
+};
 
 function readConfig(): AppConfig {
   try {
@@ -243,12 +253,16 @@ function main() {
         exerciseId: result.checkedIn.id,
         ts: Date.now(),
       });
+      tel("check_in", { exercise: result.checkedIn.id });
     }
 
     if (machine.pet !== prevPet) {
       // 窗口先变尺寸，再通知渲染端出气泡
       if (machine.pet === "remind" || machine.pet === "happy") setSizeAnchored(FULL_W, FULL_H);
       else setSizeAnchored(CAT_W, CAT_H);
+      if (machine.pet === "remind" && machine.exercise) {
+        tel("remind_fired", { exercise: machine.exercise.id });
+      }
       broadcast();
     }
   }
@@ -333,6 +347,12 @@ function main() {
           ],
         },
         { type: "separator" },
+        {
+          label: t.telemetry,
+          type: "checkbox",
+          checked: telemetryEnabled(readConfig()),
+          click: (item) => saveConfig({ telemetry: item.checked }),
+        },
         { label: t.quit, click: () => app.quit() },
       ]),
     );
@@ -348,4 +368,5 @@ function main() {
   console.log(
     `[micro-pet] alive · interval=${Math.round(machineCfg.intervalMs / 60000)}min · locale=${currentLocale()} · db=${DB_PATH}`,
   );
+  tel("app_open", { exercises: exercises.length, scheduleWindows: schedule?.windows.length ?? 0 });
 }
