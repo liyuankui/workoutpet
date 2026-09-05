@@ -1,6 +1,9 @@
 import type { Exercise } from "./exercises";
 import { pickRandom } from "./exercises";
 
+/** 动作抽取器：默认纯随机；主进程可注入「类别均衡」策略 */
+export type ExercisePicker = (exercises: readonly Exercise[], rand: () => number) => Exercise;
+
 /**
  * F3 定时提醒状态机（纯逻辑，时钟可注入）
  * 状态转移：idle →(到点) remind →(摸头) happy →(3s) idle
@@ -68,6 +71,7 @@ export function dispatch(
   cfg: MachineConfig,
   exercises: readonly Exercise[],
   rand: () => number = Math.random,
+  pick: ExercisePicker = (ex, r) => pickRandom(ex, r),
 ): DispatchResult {
   const s = { ...m };
   const none: DispatchResult = { state: s, checkedIn: null, wiggle: false };
@@ -75,7 +79,7 @@ export function dispatch(
   if (ev.type === "FORCE") {
     if (s.pet === "remind") return none; // 提醒中不重复触发
     s.pet = "remind";
-    s.exercise = pickRandom(exercises, rand);
+    s.exercise = pick(exercises, rand);
     s.remindStartedAt = ev.now;
     return { state: s, checkedIn: null, wiggle: false };
   }
@@ -95,7 +99,7 @@ export function dispatch(
   if (s.pet === "idle") {
     if (ev.now - s.lastCycleAt >= cfg.intervalMs) {
       s.pet = "remind";
-      s.exercise = pickRandom(exercises, rand);
+      s.exercise = pick(exercises, rand);
       s.remindStartedAt = ev.now;
     }
     return none;

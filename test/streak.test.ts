@@ -76,6 +76,19 @@ describe("streak 计算（当日 ≥1 打卡记 1 天，连续即 streak）", ()
   test("同日多次打卡仍记 1 天", () => {
     expect(currentStreak(rec("2026-09-04", 5), "2026-09-04")).toBe(1);
   });
+
+  test("v0.4.0 goalDaily：达标日制——未达标日不记", () => {
+    expect(currentStreak(rec("2026-09-04", 3), "2026-09-04", 4)).toBe(0);      // 3<4 未达标
+    expect(currentStreak(rec("2026-09-04", 4), "2026-09-04", 4)).toBe(1);      // 4>=4 达标
+    // 昨天 6 次达标、今天 2 次未达标 → 从昨天数 streak=1
+    expect(
+      currentStreak([...rec("2026-09-03", 6), ...rec("2026-09-04", 2)], "2026-09-04", 5),
+    ).toBe(1);
+    // 连续两日达标
+    expect(
+      currentStreak([...rec("2026-09-03", 5), ...rec("2026-09-04", 5)], "2026-09-04", 5),
+    ).toBe(2);
+  });
 });
 
 describe("weekReport（周一起）", () => {

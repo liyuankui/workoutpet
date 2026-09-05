@@ -4,6 +4,7 @@
     "showHide": "显示 / 隐藏猫",
     "remindNow": "立刻提醒（演示）",
     "copyReport": "复制周报到剪贴板",
+    "agentSetup": "复制 AI 配置助手 Prompt",
     "language": "语言",
     "quit": "退出"
   },

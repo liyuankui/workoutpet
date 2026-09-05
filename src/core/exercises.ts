@@ -17,6 +17,7 @@ export const ExerciseSchema = z.object({
     .catchall(z.array(z.string().min(1)).min(2).max(4)),
   durationSec: z.number().int().min(10).max(120),
   animation: z.enum(["stretch", "neck", "wrists", "legs", "heels", "shoulders", "breath"]),
+  category: z.enum(["lower", "upper", "hands", "core", "general"]).default("general"),
   meta: z
     .object({
       source: z.string().default("micro-pet"),
@@ -33,6 +34,7 @@ export interface Exercise {
   steps: Record<string, string[]>;
   durationSec: number;
   animation: string;
+  category: "lower" | "upper" | "hands" | "core" | "general";
   meta: { source: string; shareable: boolean };
 }
 
@@ -74,9 +76,27 @@ export function pickRandom<T>(list: readonly T[], rand: () => number = Math.rand
 }
 
 /**
- * 动作库解析：用户覆盖优先（~/.micro-pet/exercises.json），非法/缺失回退内置库。
- * 返回 [exercises, source]——source 供诊断与 CLI 提示。
+ * 均衡抽取（v0.4.0）：优先「最久未练的类别」，类内随机。
+ * recentCategories 为最近练过的类别序列（新的在后）。返回 [选中动作, 更新后的序列]。
  */
+export function pickBalanced(
+  exercises: readonly Exercise[],
+  recentCategories: readonly string[],
+  rand: () => number = Math.random,
+): { exercise: Exercise; recent: string[] } {
+  if (exercises.length === 0) throw new Error("动作库为空");
+  const pool = exercises;
+  const cats = [...new Set(pool.map((e) => e.category))];
+  // 目标类别 = 最近最久未练（从未练过排最前；-1 即从未出现）
+  const byOldest = [...cats].sort(
+    (a, b) => recentCategories.lastIndexOf(a) - recentCategories.lastIndexOf(b),
+  );
+  const target = byOldest[0]!;
+  const inCat = pool.filter((e) => e.category === target);
+  const chosen = pickRandom(inCat.length ? inCat : pool, rand);
+  const recent = [...recentCategories, chosen.category].slice(-Math.max(4, cats.length));
+  return { exercise: chosen, recent };
+}
 export function resolveExercises(
   userRaw: unknown,
   bundledRaw: unknown,

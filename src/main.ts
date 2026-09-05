@@ -3,13 +3,14 @@ import { join, dirname } from "node:path";
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { createMachine, dispatch, DEFAULT_CONFIG, type MachineConfig, type MachineState } from "./core/stateMachine";
-import { localizeExercise, resolveExercises, type Exercise } from "./core/exercises";
+import { localizeExercise, resolveExercises, pickBalanced, type Exercise } from "./core/exercises";
 import exercisesJson from "./core/exercises.json";
 import { userPaths, readUserExercisesRaw } from "./core/userConfig";
 import { appendCheckIn, currentStreak, readDB, localDateKey } from "./core/streak";
 import { renderReport } from "./core/report";
 import { FRAMES, frameToRGBA } from "./core/pixelcat";
 import { isLocale, resolveLocale, strings, type Locale } from "./core/i18n";
+import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedule";
 
 // ---------- boot 日志（最先执行：LS 启动无 stdout，靠它诊断"静默僵尸"） ----------
 const BOOT_LOG = join(process.env.MICROPET_HOME ?? join(homedir(), ".micro-pet"), "boot.log");
@@ -25,12 +26,18 @@ process.on("unhandledRejection", (r) => blog(`unhandled: ${String(r)}`));
 
 // ---------- 配置（~/.micro-pet/config.json） ----------
 interface AppConfig {
-  intervalMin: number; // 30-120
+  intervalMin: number; // 30-120（无 schedule 时的回退间隔）
   /** 猫区右下角坐标（锚定右下存，杜绝 remind 扩窗后重启漂移） */
   brx?: number;
   bry?: number;
   /** 语言覆盖（缺省跟随系统） */
   locale?: string;
+  /** 每日打卡目标（1-30；设置后 streak 按「达标日」计） */
+  goalDaily?: number;
+  /** 启用的动作 id 子集（缺省全部） */
+  enabledExercises?: string[];
+  /** 时段调度（不同时段不同密度，窗口外静默） */
+  schedule?: unknown;
 }
 
 const HOME = process.env.MICROPET_HOME ?? join(app.getPath("home"), ".micro-pet");
@@ -80,12 +87,33 @@ function main() {
 
   // 动作库：用户覆盖（~/.micro-pet/exercises.json）优先，非法回退内置
   const paths = userPaths(HOME);
-  const { exercises, source: exSource, error: exError } = resolveExercises(
+  const { exercises: allExercises, source: exSource, error: exError } = resolveExercises(
     readUserExercisesRaw(paths),
     exercisesJson,
   );
   blog(`exercises source=${exSource}${exError ? ` error=${exError}` : ""}`);
   const cfg = readConfig();
+
+  // 动作子集（enabledExercises）
+  let exercises: Exercise[] = allExercises;
+  if (Array.isArray(cfg.enabledExercises) && cfg.enabledExercises.length > 0) {
+    const filtered = allExercises.filter((e) => cfg.enabledExercises!.includes(e.id));
+    if (filtered.length > 0) exercises = filtered;
+    else blog("enabledExercises 全部未命中，回退全量动作库");
+  }
+
+  // 每日目标（goalDaily）
+  const goalDaily =
+    Number.isFinite(cfg.goalDaily) && Number(cfg.goalDaily) >= 1 && Number(cfg.goalDaily) <= 30
+      ? Number(cfg.goalDaily)
+      : undefined;
+
+  // 时段调度（schedule）：非法回退 intervalMin
+  const schedResult = cfg.schedule ? validateSchedule(cfg.schedule) : { ok: false };
+  const schedule: Schedule | null = schedResult.ok ? schedResult.schedule! : null;
+  blog(
+    `schedule=${schedule ? `${schedule.windows.length} windows` : "none"} goalDaily=${goalDaily ?? "off"} enabled=${exercises.length}/${allExercises.length}`,
+  );
 
   function currentLocale(): Locale {
     const saved = readConfig().locale;
@@ -190,15 +218,23 @@ function main() {
       exercise: machine.exercise ? localizeExercise(machine.exercise, locale) : null,
       streakDays:
         machine.pet === "happy"
-          ? currentStreak(readDB(DB_PATH).records, localDateKey(Date.now()))
+          ? currentStreak(readDB(DB_PATH).records, localDateKey(Date.now()), goalDaily)
           : 0, // streak 只在 happy 气泡需要，避免每秒读盘
       locale,
     });
   }
 
-  function handle(ev: Parameters<typeof dispatch>[1]) {
+  // 均衡抽取（v0.4.0）：优先最久未练的类别
+  let recentCategories: string[] = [];
+  const balancedPick = (ex: readonly Exercise[]): Exercise => {
+    const r = pickBalanced(ex, recentCategories);
+    recentCategories = r.recent;
+    return r.exercise;
+  };
+
+  function handle(ev: Parameters<typeof dispatch>[1], cfgOverride?: MachineConfig) {
     const prevPet = machine.pet;
-    const result = dispatch(machine, ev, machineCfg, exercises);
+    const result = dispatch(machine, ev, cfgOverride ?? machineCfg, exercises, Math.random, (ex) => balancedPick(ex));
     machine = result.state;
 
     if (result.checkedIn) {
@@ -218,12 +254,23 @@ function main() {
   }
 
   setInterval(() => {
+    const now = Date.now();
+    // 时段调度：窗口外静默（下班/夜间不打扰），窗口内取该时段间隔
+    let cfgNow = machineCfg;
+    if (schedule) {
+      const iv = intervalMinutes(schedule, new Date(now));
+      if (iv === null) {
+        if (machine.pet === "idle") machine = { ...machine, lastCycleAt: now }; // 静默期顺延，出窗即恢复
+        return;
+      }
+      cfgNow = { ...machineCfg, intervalMs: iv * 60_000 };
+    }
     // 猫被隐藏期间不打扰：顺延计时，重新显示后不补弹
     if (machine.pet === "idle" && !win.isVisible()) {
-      machine = { ...machine, lastCycleAt: Date.now() };
+      machine = { ...machine, lastCycleAt: now };
       return;
     }
-    handle({ type: "TICK", now: Date.now() });
+    handle({ type: "TICK", now }, cfgNow);
   }, 1_000);
 
   // ---------- IPC ----------
@@ -254,8 +301,21 @@ function main() {
           label: t.copyReport,
           click: () =>
             clipboard.writeText(
-              renderReport(readDB(DB_PATH), exercises, Date.now(), undefined, currentLocale()),
+              renderReport(readDB(DB_PATH), exercises, Date.now(), undefined, currentLocale(), goalDaily),
             ),
+        },
+        {
+          label: t.agentSetup,
+          click: () => {
+            // 把官方「AI 配置助手」采访 prompt 复制给用户的 Agent
+            const file =
+              currentLocale() === "en" ? "docs/agent-setup-prompt.en.md" : "docs/agent-setup-prompt.md";
+            try {
+              clipboard.writeText(readFileSync(join(APP_ROOT, file), "utf8"));
+            } catch {
+              clipboard.writeText("See https://github.com/liyuankui/workoutpet — docs/agent-setup-prompt.md");
+            }
+          },
         },
         {
           label: t.language,

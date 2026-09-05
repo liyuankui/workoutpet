@@ -46,11 +46,34 @@ brew install --cask liyuankui/tap/micro-pet
 
 | 文件 | 字段 | 说明 |
 |------|------|------|
-| `config.json` | `intervalMin` | 提醒间隔分钟，30-120，默认 60；改后重启 app 生效 |
+| `config.json` | `intervalMin` | 提醒间隔分钟，30-120，默认 60；**无 schedule 时生效** |
+| | `schedule` | **时段调度**：不同时段不同密度，窗口外静默（下班/夜间不打扰）。午饭前后与午后倦怠期可加密 |
+| | `goalDaily` | 每日打卡目标（1-30）；设置后 streak 按「达标日」计，周报显示 N/目标 |
+| | `enabledExercises` | 动作 id 白名单（缺省全部）；猫自动按 下肢/肩颈/手腕/核心 四类轮换，保证均衡 |
 | | `locale` | `"zh-CN"` / `"en"`；缺省跟随系统（托盘切换即写此处） |
 | | `brx` / `bry` | 猫的右下角坐标，拖动后自动保存，重启保持 |
 | `exercises.json` | — | **自定义动作库**（存在即覆盖内置），见下 |
 | `streak.json` | — | 打卡数据，纯本地；删除即重置 |
+
+`schedule` 示例（上午专注稀疏 / 午饭前后加密 / 午后倦怠最密 / 傍晚回落）：
+
+```json
+{
+  "goalDaily": 8,
+  "schedule": {
+    "windows": [
+      { "from": "09:00", "to": "11:30", "intervalMin": 75 },
+      { "from": "11:30", "to": "13:30", "intervalMin": 40 },
+      { "from": "13:30", "to": "15:30", "intervalMin": 35 },
+      { "from": "15:30", "to": "18:00", "intervalMin": 60 }
+    ]
+  }
+}
+```
+
+### 🤖 让你的 AI 替你定制（Prompt 即设置）
+
+不用手改 JSON——**菜单栏小猫 →「复制 AI 配置助手 Prompt」**，粘给你的 AI 助手。它会采访你（作息/午饭/倦怠时段/目的/一天想被提醒几次/动作偏好），然后生成并写入 config，`micro-pet validate-config` 校验后重启生效。完整采访指令见 [docs/agent-setup-prompt.md](docs/agent-setup-prompt.md)。
 
 ### 自定义动作库
 

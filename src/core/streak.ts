@@ -63,13 +63,22 @@ function fmtKey(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-/** 当前 streak：当日 ≥1 打卡记 1 天，连续天数即 streak；今天还没打卡时从昨天起算（streak 不因跨日即断） */
-export function currentStreak(records: CheckIn[], todayKey: string): number {
-  const days = new Set(records.map((r) => r.date));
+/**
+ * 当前 streak：连续「达标日」天数。
+ * goalDaily 缺省/≤0 → 当日 ≥1 打卡即达标（v0.1 规则，向后兼容）；
+ * 配置后 → 当日打卡 ≥ goalDaily 才算达标日。
+ * 今天尚未达标时从昨天起算（streak 不因跨日即断）。
+ */
+export function currentStreak(records: CheckIn[], todayKey: string, goalDaily?: number): number {
+  const perDay = new Map<string, number>();
+  for (const r of records) perDay.set(r.date, (perDay.get(r.date) ?? 0) + 1);
+  const met = (key: string) =>
+    goalDaily && goalDaily > 0 ? (perDay.get(key) ?? 0) >= goalDaily : perDay.has(key);
+
   let cursor = parseKey(todayKey);
-  if (!days.has(fmtKey(cursor))) cursor.setDate(cursor.getDate() - 1); // 今天尚未打卡，从昨天数
+  if (!met(fmtKey(cursor))) cursor.setDate(cursor.getDate() - 1); // 今天还没达标，从昨天数
   let streak = 0;
-  while (days.has(fmtKey(cursor))) {
+  while (met(fmtKey(cursor))) {
     streak++;
     cursor.setDate(cursor.getDate() - 1);
   }

@@ -47,11 +47,34 @@ Install and verify the micro-pet desk pet on this Mac:
 
 | File | Field | Description |
 |------|-------|-------------|
-| `config.json` | `intervalMin` | Reminder interval in minutes, 30–120, default 60; restart to apply |
+| `config.json` | `intervalMin` | Reminder interval in minutes, 30–120, default 60; **used only when no `schedule` is set** |
+| | `schedule` | **Time-window scheduling**: different densities per time of day; outside all windows the cat stays silent (no reminders after work / at night). Densify around lunch and the afternoon slump |
+| | `goalDaily` | Daily check-in goal (1–30); when set, the streak counts "goal-met days" and the report shows N/goal |
+| | `enabledExercises` | Exercise id whitelist (default all); the cat auto-rotates lower/upper/hands/core categories for balance |
 | | `locale` | `"zh-CN"` / `"en"`; defaults to system language (tray switch writes here) |
 | | `brx` / `bry` | Cat's bottom-right corner; saved on drag, restored on restart |
 | `exercises.json` | — | **Custom exercise library** (overrides the built-in when present), see below |
 | `streak.json` | — | Check-in data, purely local; delete to reset |
+
+`schedule` example (sparse focused morning / denser around lunch / densest in the afternoon slump / easing off):
+
+```json
+{
+  "goalDaily": 8,
+  "schedule": {
+    "windows": [
+      { "from": "09:00", "to": "11:30", "intervalMin": 75 },
+      { "from": "11:30", "to": "13:30", "intervalMin": 40 },
+      { "from": "13:30", "to": "15:30", "intervalMin": 35 },
+      { "from": "15:30", "to": "18:00", "intervalMin": 60 }
+    ]
+  }
+}
+```
+
+### 🤖 Let your AI customize it (prompt-as-settings)
+
+No manual JSON editing — click the menu-bar cat → **"Copy AI Setup Assistant Prompt"** and paste it to your AI assistant. It will interview you (routine / lunch / slump times / goals / reminders-per-day / exercise preferences), then generate and write the config; validate with `micro-pet validate-config` and restart. Full interview instructions: [docs/agent-setup-prompt.en.md](docs/agent-setup-prompt.en.md).
 
 ### Custom exercises
 
