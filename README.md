@@ -22,47 +22,15 @@ brew install --cask liyuankui/tap/micro-pet
 
 ## 🤖 Paste to your agent
 
-**① 安装**——粘给你的 AI 助手（ZCode / Claude / WorkBuddy 等），让它替你装好并验证：
+把下面这段粘给你的 AI 助手（ZCode / Claude / WorkBuddy 等），它会自行抓取文档、装好并验证，再采访你定制提醒计划：
 
 ```text
-帮我在这台 Mac 上安装并验证微运动桌宠 micro-pet：
-1. 执行 brew install --cask liyuankui/tap/micro-pet
-2. 未签名首启处理：xattr -dr com.apple.quarantine /Applications/micro-pet.app
-3. 启动：open /Applications/micro-pet.app
-4. 等待 8 秒后验证：cat ~/.micro-pet/heartbeat.json 应存在且 "visible": true，
-   屏幕右下角应出现一只橘色像素猫
-5. 菜单栏小猫图标可：立刻提醒（演示）/ 切换语言 / 复制周报 / 退出
+请按这两个文档帮我安装并配置 micro-pet 微运动桌宠：
+1. 安装：https://raw.githubusercontent.com/liyuankui/workoutpet/master/docs/agent-install-prompt.md
+2. 装好后定制提醒计划：https://raw.githubusercontent.com/liyuankui/workoutpet/master/docs/agent-setup-prompt.md
 ```
 
-**② 定制提醒计划**——装好后，把这段粘给你的 AI，它会采访你（作息/倦怠/目的/剂量/偏好）并生成专属调度配置：
-
-```text
-你是 micro-pet（微运动桌宠）的配置助手。micro-pet 是一只常驻 macOS 屏幕右下角的像素猫：
-定时提醒用户做 30-60 秒坐姿微运动，点猫打卡，本地记录 streak。你的任务：采访我，然后为我定制调度配置。
-
-第一步 · 采访我（逐项问）：
-1. 作息：工作日几点开始/结束对电脑？午休几点到几点？
-2. 倦怠时段：一天中什么时候最容易犯困/走神？
-3. 目的：主要想解决什么？（久坐酸痛/控血糖/提神/打断久坐）
-4. 剂量：一天愿意被提醒几次？（研究建议 6-10 次；从 5 次起步也可以）
-5. 偏好：想重点照顾的部位？会议多的时段是否只做隐形动作（提踵/收腹呼吸）？
-6. 伤病：有无需要回避的部位？（下肢/肩颈/手腕/核心）
-
-第二步 · 写 ~/.micro-pet/config.json（保留已有 brx/bry 字段）：
-{ "goalDaily": 6, "schedule": { "windows": [
-    { "from": "09:00", "to": "11:30", "intervalMin": 75 },
-    { "from": "13:30", "to": "15:30", "intervalMin": 35 },
-    { "from": "15:30", "to": "18:00", "intervalMin": 60 } ] } }
-规则：窗口外=静默（夜间/会议期不打扰）；intervalMin 5-180；倦怠时段调密(30-45)专注时段调疏(60-90)；
-goalDaily 1-30 且比提醒上限少 1-2 次（留缓冲防断 streak）；特殊作息（如中午运动）直接静默不硬塞窗口；
-enabledExercises 可选动作白名单（缺省全部，猫自动四类轮换）。
-
-第三步 · 验证：写入前先给我看完整 JSON；写入后让我重启 app（托盘→退出→重开），
-然后 cat ~/.micro-pet/boot.log | tail -3 应出现 schedule=N windows。
-边界：只准改 ~/.micro-pet/config.json 一个文件；不确定的作息要问我，别猜。
-```
-
-完整版（含 7 个动作 id 清单与英文版）：[docs/agent-setup-prompt.md](docs/agent-setup-prompt.md) · 也可托盘小猫 →「复制 AI 配置助手 Prompt」一键获取。
+文档直读：[安装](docs/agent-install-prompt.md) · [定制](docs/agent-setup-prompt.md)（托盘小猫也可一键复制）
 
 ## 怎么用
 

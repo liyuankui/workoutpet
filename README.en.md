@@ -22,52 +22,15 @@ The app is unsigned: on first launch right-click → Open (or run `xattr -dr com
 
 ## 🤖 Paste to your agent
 
-**① Install** — paste this to your AI assistant (ZCode / Claude / WorkBuddy, etc.) and let it install and verify for you:
+Paste this to your AI assistant (ZCode / Claude / WorkBuddy, etc.) — it fetches the docs itself, installs and verifies, then interviews you for a personalized plan:
 
 ```text
-Install and verify the micro-pet desk pet on this Mac:
-1. Run: brew install --cask liyuankui/tap/micro-pet
-2. Unsigned first-launch workaround: xattr -dr com.apple.quarantine /Applications/micro-pet.app
-3. Launch: open /Applications/micro-pet.app
-4. After ~8s verify: cat ~/.micro-pet/heartbeat.json exists and shows "visible": true;
-   an orange pixel cat should appear in the bottom-right corner of the screen
-5. The cat icon in the menu bar offers: remind me now (demo) / switch language /
-   copy weekly report / quit
+Please install and configure the micro-pet desk pet for me following these two documents:
+1. Install: https://raw.githubusercontent.com/liyuankui/workoutpet/master/docs/agent-install-prompt.en.md
+2. Then customize my reminder schedule: https://raw.githubusercontent.com/liyuankui/workoutpet/master/docs/agent-setup-prompt.en.md
 ```
 
-**② Customize your plan** — once installed, paste this to your AI; it will interview you (routine / slump times / goals / dose / preferences) and generate your personal schedule:
-
-```text
-You are the setup assistant for micro-pet, a micro-workout desk pet: a pixel cat in the
-bottom-right corner of the macOS screen that reminds the user to do 30–60 second seated
-micro-exercises; the user clicks the cat to check in and grows a local streak.
-Your task: interview me, then customize my scheduling config.
-
-Step 1 · Interview me (one item at a time):
-1. Routine: workday computer start/end times? Lunch window?
-2. Slump times: when am I most drowsy/distracted?
-3. Goal: soreness relief / glucose control / alertness / breaking up sitting?
-4. Dose: how many reminders per day am I okay with? (research suggests 6–10; starting at 5 is fine)
-5. Preferences: body parts to prioritize? Only "invisible" exercises during meeting-heavy hours?
-6. Constraints: any soreness or injury to avoid? (lower / shoulders-neck / wrists / core)
-
-Step 2 · Write ~/.micro-pet/config.json (keep existing brx/bry fields):
-{ "goalDaily": 6, "schedule": { "windows": [
-    { "from": "09:00", "to": "11:30", "intervalMin": 75 },
-    { "from": "13:30", "to": "15:30", "intervalMin": 35 },
-    { "from": "15:30", "to": "18:00", "intervalMin": 60 } ] } }
-Rules: times outside all windows = silent; intervalMin 5–180; denser in slumps (30–45),
-sparser in focused mornings (60–90); goalDaily 1–30 and 1–2 below the reminder max
-(headroom keeps streaks alive); special routines (e.g. midday workouts) = keep silent;
-enabledExercises optional whitelist (default all; the cat auto-rotates 4 categories).
-
-Step 3 · Validate: show me the full JSON before writing; after writing have me restart the
-app (tray → Quit → reopen), then `cat ~/.micro-pet/boot.log | tail -3` should show
-"schedule=N windows".
-Boundaries: only modify ~/.micro-pet/config.json; ask instead of guessing.
-```
-
-Full version (all 7 exercise ids, Chinese edition): [docs/agent-setup-prompt.en.md](docs/agent-setup-prompt.en.md) · or one-click via the menu-bar cat → "Copy AI Setup Assistant Prompt".
+Read the docs directly: [Install](docs/agent-install-prompt.en.md) · [Setup](docs/agent-setup-prompt.en.md) (also one-click copy from the menu-bar cat)
 
 ## How it works
 
