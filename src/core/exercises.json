@@ -1,70 +1,91 @@
 [
   {
     "id": "heels-raise",
-    "name": "提踵（桌下）",
+    "name": { "zh-CN": "提踵（桌下）", "en": "Heel Raises (under desk)" },
     "emoji": "🦶",
-    "cue": "脚跟抬起→落下，15 次",
-    "steps": ["坐姿，双脚踩地", "脚尖不动，脚跟尽量抬起", "缓慢落下，重复 15 次"],
+    "cue": { "zh-CN": "脚跟抬起→落下，15 次", "en": "Lift heels up & down ×15" },
+    "steps": {
+      "zh-CN": ["坐姿，双脚踩地", "脚尖不动，脚跟尽量抬起", "缓慢落下，重复 15 次"],
+      "en": ["Sit with feet flat", "Keep toes down, lift heels high", "Lower slowly, ×15"]
+    },
     "durationSec": 45,
     "animation": "heels",
     "meta": { "source": "micro-pet", "shareable": true }
   },
   {
     "id": "chair-squat",
-    "name": "座椅微蹲",
+    "name": { "zh-CN": "座椅微蹲", "en": "Chair Micro-Squat" },
     "emoji": "🪑",
-    "cue": "屁股离椅 3 秒再坐回，5 次",
-    "steps": ["坐直，双脚踩实", "屁股抬离椅面约 5cm，保持 3 秒", "缓慢坐回，重复 5 次"],
+    "cue": { "zh-CN": "屁股离椅 3 秒再坐回，5 次", "en": "Lift hips off chair 3s ×5" },
+    "steps": {
+      "zh-CN": ["坐直，双脚踩实", "屁股抬离椅面约 5cm，保持 3 秒", "缓慢坐回，重复 5 次"],
+      "en": ["Sit tall, feet planted", "Lift hips ~5cm, hold 3s", "Sit back slowly, ×5"]
+    },
     "durationSec": 40,
     "animation": "stretch",
     "meta": { "source": "micro-pet", "shareable": true }
   },
   {
     "id": "shoulder-blades",
-    "name": "肩胛后缩",
+    "name": { "zh-CN": "肩胛后缩", "en": "Shoulder Blade Squeeze" },
     "emoji": "💪",
-    "cue": "双肩向后夹紧 5 秒 × 5",
-    "steps": ["双肩自然下垂", "肩胛骨向后向内夹紧，保持 5 秒", "放松，重复 5 次"],
+    "cue": { "zh-CN": "双肩向后夹紧 5 秒 × 5", "en": "Squeeze shoulder blades 5s ×5" },
+    "steps": {
+      "zh-CN": ["双肩自然下垂", "肩胛骨向后向内夹紧，保持 5 秒", "放松，重复 5 次"],
+      "en": ["Let shoulders relax", "Squeeze blades back & in, hold 5s", "Release, ×5"]
+    },
     "durationSec": 35,
     "animation": "shoulders",
     "meta": { "source": "micro-pet", "shareable": true }
   },
   {
     "id": "neck-stretch",
-    "name": "颈部拉伸",
+    "name": { "zh-CN": "颈部拉伸", "en": "Neck Stretch" },
     "emoji": "🧘",
-    "cue": "头侧倾各 15 秒",
-    "steps": ["右手轻扶头右侧", "头缓慢向左倾，保持 15 秒", "换边重复"],
+    "cue": { "zh-CN": "头侧倾各 15 秒", "en": "Tilt head sideways 15s each" },
+    "steps": {
+      "zh-CN": ["右手轻扶头右侧", "头缓慢向左倾，保持 15 秒", "换边重复"],
+      "en": ["Right hand on head", "Tilt slowly left, hold 15s", "Switch sides"]
+    },
     "durationSec": 30,
     "animation": "neck",
     "meta": { "source": "micro-pet", "shareable": true }
   },
   {
     "id": "leg-hold",
-    "name": "抬腿保持",
+    "name": { "zh-CN": "抬腿保持", "en": "Seated Leg Hold" },
     "emoji": "🦵",
-    "cue": "坐直双腿并拢抬起离地 10 秒 × 3",
-    "steps": ["坐直，双手扶椅面", "双腿并拢伸直抬离地面", "保持 10 秒，重复 3 次"],
+    "cue": { "zh-CN": "坐直双腿并拢抬起离地 10 秒 × 3", "en": "Legs lifted off floor 10s ×3" },
+    "steps": {
+      "zh-CN": ["坐直，双手扶椅面", "双腿并拢伸直抬离地面", "保持 10 秒，重复 3 次"],
+      "en": ["Sit tall, hold chair", "Legs straight, lift off floor", "Hold 10s, ×3"]
+    },
     "durationSec": 40,
     "animation": "legs",
     "meta": { "source": "micro-pet", "shareable": true }
   },
   {
     "id": "wrist-stretch",
-    "name": "手腕伸展",
+    "name": { "zh-CN": "手腕伸展", "en": "Wrist Stretch" },
     "emoji": "✋",
-    "cue": "掌心向外压 15 秒",
-    "steps": ["手臂前伸，掌心朝外", "另一手轻拉指尖，感到前臂拉伸", "保持 15 秒，换手"],
+    "cue": { "zh-CN": "掌心向外压 15 秒", "en": "Palm-out press 15s" },
+    "steps": {
+      "zh-CN": ["手臂前伸，掌心朝外", "另一手轻拉指尖，感到前臂拉伸", "保持 15 秒，换手"],
+      "en": ["Arm forward, palm out", "Pull fingertips gently", "Hold 15s, switch"]
+    },
     "durationSec": 30,
     "animation": "wrists",
     "meta": { "source": "micro-pet", "shareable": true }
   },
   {
     "id": "belly-breath",
-    "name": "收腹呼吸",
+    "name": { "zh-CN": "收腹呼吸", "en": "Belly Breathing" },
     "emoji": "🌬️",
-    "cue": "吸 4 呼 6，收腹 × 5",
-    "steps": ["坐直，肩放松", "吸气 4 秒，腹部鼓起", "呼气 6 秒，收紧腹部，重复 5 次"],
+    "cue": { "zh-CN": "吸 4 呼 6，收腹 × 5", "en": "Inhale 4, exhale 6 ×5" },
+    "steps": {
+      "zh-CN": ["坐直，肩放松", "吸气 4 秒，腹部鼓起", "呼气 6 秒，收紧腹部，重复 5 次"],
+      "en": ["Sit tall, relax shoulders", "Inhale 4s, belly expands", "Exhale 6s, engage core, ×5"]
+    },
     "durationSec": 60,
     "animation": "breath",
     "meta": { "source": "micro-pet", "shareable": true }

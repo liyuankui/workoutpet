@@ -1,14 +1,18 @@
 import type { StreakDB } from "./streak";
 import { currentStreak, localDateKey, weekReport } from "./streak";
-import type { Exercise } from "./exercises";
+import { localizeExercise, type Exercise } from "./exercises";
+import { fmt, strings, isLocale, DEFAULT_LOCALE, type Locale } from "./i18n";
 
-/** F5 周报——默认 markdown 输出（LLM/人双友好） */
+/** F5 周报——markdown 输出，双语（F8） */
 export function renderReport(
   db: StreakDB,
   exercises: readonly Exercise[],
   now: number = Date.now(),
   tz?: string,
+  locale: string = DEFAULT_LOCALE,
 ): string {
+  const loc: Locale = isLocale(locale) ? locale : DEFAULT_LOCALE;
+  const t = strings(loc).report;
   const todayKey = localDateKey(now, tz);
   const streak = currentStreak(db.records, todayKey);
   const { weekCount, perExercise, monday } = weekReport(db.records, todayKey);
@@ -19,17 +23,17 @@ export function renderReport(
     .sort((a, b) => b[1] - a[1])
     .map(([id, n]) => {
       const ex = byId.get(id);
-      return `- ${ex ? `${ex.emoji} ${ex.name}` : id} ×${n}`;
+      return ex ? `- ${localizeExercise(ex, loc).emoji} ${localizeExercise(ex, loc).name} ×${n}` : `- ${id} ×${n}`;
     });
 
   return [
-    `# 🐱 Micro-pet 周报（${monday} 起）`,
+    fmt(t.title, { monday }),
     "",
-    `- 当前 streak：**${streak} 天**`,
-    `- 今日打卡：${todayCount} 次`,
-    `- 本周打卡：${weekCount} 次`,
+    fmt(t.streak, { n: streak }),
+    fmt(t.today, { n: todayCount }),
+    fmt(t.week, { n: weekCount }),
     "",
-    "## 动作分布",
-    ...(dist.length > 0 ? dist : ["- （本周还没有打卡，摸摸猫吧）"]),
+    t.dist,
+    ...(dist.length > 0 ? dist : [t.empty]),
   ].join("\n");
 }

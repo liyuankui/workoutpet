@@ -114,6 +114,26 @@ const STRETCH_B = [
   "................",
 ];
 
+/** 打滚（侧躺，F9 反应池） */
+const ROLL = [
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  ".....KK.........",
+  "....KPPK...K....",
+  "...KOOOOK..OK...",
+  "..KOOEOOKKOOK...",
+  "..KOOOOPPOOOKK..",
+  ".KOOOOOOOOOOOK..",
+  ".KLLLLLLLLLLKK..",
+  "..KKKKKKKKKKK...",
+  "................",
+  "................",
+  "................",
+];
+
 /** 开心（头顶爱心，bounce 由渲染器 y 偏移实现） */
 const HAPPY_A = [
   "...........RR...",
@@ -141,6 +161,7 @@ export const FRAMES = {
   stretchA: STRETCH_A,
   stretchB: STRETCH_B,
   happy: HAPPY_A,
+  roll: ROLL,
 } as const;
 
 export type FrameName = keyof typeof FRAMES;

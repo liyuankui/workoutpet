@@ -1,4 +1,4 @@
-// 渲染端：像素猫动画 + 气泡 + 摸头交互（状态权威在 main 进程，sprite 经 preload 注入）
+// 渲染端：像素猫动画 + 气泡 + 点击互动反应（状态权威在 main 进程，sprite/文案经 preload 注入）
 /* global microPet */
 const { PALETTE, GRID, FRAMES } = microPet.sprites();
 
@@ -31,8 +31,12 @@ const ANIMS = {
 };
 
 let petState = "idle";
+let locale = "zh-CN";
 let animStart = performance.now();
-let wiggleUntil = 0;
+
+// F9 点击互动反应
+let reaction = null;        // { type, start, duration }
+let lastReactAt = 0;
 
 function drawFrame(name, ox, oy) {
   const frame = FRAMES[name];
@@ -48,12 +52,23 @@ function drawFrame(name, ox, oy) {
 }
 
 function loop(now) {
-  if (now < wiggleUntil) {
-    // 蹭蹭：快速左右抖
-    const ox = Math.floor(now / 90) % 2 === 0 ? 0 : 1;
-    drawFrame("idleA", ox, 0);
-    requestAnimationFrame(loop);
-    return;
+  if (reaction) {
+    const p = (now - reaction.start) / reaction.duration; // 0→1
+    if (p >= 1) {
+      reaction = null;
+    } else if (reaction.type === "wiggle") {
+      drawFrame("idleA", Math.floor(now / 90) % 2 === 0 ? 0 : 1, 0);
+    } else if (reaction.type === "jump") {
+      drawFrame("idleA", 0, -Math.round(6 * Math.sin(Math.PI * p))); // 跳一下弧线
+    } else if (reaction.type === "meow") {
+      drawFrame("idleA", 0, 0); // 气泡在 click 时已弹出
+    } else if (reaction.type === "roll") {
+      drawFrame("roll", Math.floor(now / 140) % 2 === 0 ? 0 : 1, 0); // 侧躺打滚抖
+    }
+    if (reaction) {
+      requestAnimationFrame(loop);
+      return;
+    }
   }
   const anim = ANIMS[petState] ?? ANIMS.idle;
   const total = anim.reduce((s, f) => s + f[1], 0);
@@ -72,6 +87,7 @@ requestAnimationFrame(loop);
 function showBubble(title, cue) {
   titleEl.textContent = title;
   cueEl.textContent = cue ?? "";
+  cueEl.style.display = cue ? "" : "none";
   bubble.classList.add("show");
 }
 function hideBubble() {
@@ -79,24 +95,37 @@ function hideBubble() {
 }
 
 microPet.onState((msg) => {
+  locale = msg.locale ?? locale;
   if (msg.pet !== petState) {
     petState = msg.pet;
     animStart = performance.now();
   }
+  const s = microPet.strings(locale);
   if (msg.pet === "remind" && msg.exercise) {
-    showBubble(`${msg.exercise.emoji} ${msg.exercise.name} · 一起来`, msg.exercise.cue);
+    showBubble(`${msg.exercise.emoji} ${msg.exercise.name} · ${s.bubble.letsGo}`, msg.exercise.cue);
   } else if (msg.pet === "happy") {
-    showBubble(`好样的！连续第 ${msg.streakDays} 天 🎉`, "摸摸头～");
+    showBubble(microPet.fmt(s.bubble.good, { n: msg.streakDays }), s.bubble.petMe);
     setTimeout(hideBubble, 2500);
   } else if (msg.pet === "idle") {
     setTimeout(() => { if (petState === "idle") hideBubble(); }, 300);
   }
-  if (msg.wiggle) wiggleUntil = performance.now() + 700; // 蹭蹭反馈
 });
 
 canvas.addEventListener("click", () => {
-  if (petState === "idle" || petState === "happy") wiggleUntil = performance.now() + 700;
-  microPet.petClick();
+  const now = performance.now();
+  if (petState === "remind") {
+    microPet.petClick(); // 打卡走主进程（F4 语义不变）
+    return;
+  }
+  // F9：idle/happy 点击 → 随机反应池（500ms 节流）
+  const r = microPet.react(lastReactAt, now);
+  if (!r) return;
+  lastReactAt = now;
+  reaction = { type: r, start: now, duration: r === "meow" ? 900 : 700 };
+  if (r === "meow") {
+    showBubble(microPet.strings(locale).meow, "");
+    setTimeout(() => { if (petState === "idle" || petState === "happy") hideBubble(); }, 900);
+  }
 });
 
 microPet.ready();

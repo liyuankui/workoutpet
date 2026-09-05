@@ -1,0 +1,24 @@
+{
+  "tray": {
+    "tooltip": "Micro-pet 微运动桌宠",
+    "showHide": "显示 / 隐藏猫",
+    "remindNow": "立刻提醒（演示）",
+    "copyReport": "复制周报到剪贴板",
+    "language": "语言",
+    "quit": "退出"
+  },
+  "bubble": {
+    "letsGo": "一起来",
+    "good": "好样的！连续第 {n} 天 🎉",
+    "petMe": "摸摸头～"
+  },
+  "meow": "喵～",
+  "report": {
+    "title": "# 🐱 Micro-pet 周报（{monday} 起）",
+    "streak": "当前 streak：**{n} 天**",
+    "today": "今日打卡：{n} 次",
+    "week": "本周打卡：{n} 次",
+    "dist": "## 动作分布",
+    "empty": "（本周还没有打卡，摸摸猫吧）"
+  }
+}

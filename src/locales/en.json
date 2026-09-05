@@ -1,0 +1,24 @@
+{
+  "tray": {
+    "tooltip": "Micro-pet — micro-workout desk pet",
+    "showHide": "Show / Hide Cat",
+    "remindNow": "Remind Me Now (demo)",
+    "copyReport": "Copy Weekly Report",
+    "language": "Language",
+    "quit": "Quit"
+  },
+  "bubble": {
+    "letsGo": "let's go",
+    "good": "Nice! Day {n} streak 🎉",
+    "petMe": "pet me~"
+  },
+  "meow": "Meow~",
+  "report": {
+    "title": "# 🐱 Micro-pet Weekly Report (since {monday})",
+    "streak": "Current streak: **{n} day(s)**",
+    "today": "Today: {n} check-in(s)",
+    "week": "This week: {n} check-in(s)",
+    "dist": "## Exercise Distribution",
+    "empty": "(No check-ins yet — go pet the cat)"
+  }
+}

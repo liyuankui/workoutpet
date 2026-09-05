@@ -1,12 +1,20 @@
 import { z } from "zod";
+import { DEFAULT_LOCALE, pickLocalized, type Locale } from "./i18n";
 
-/** F1 动作库 schema——webhook 共享字段在 meta 预留 */
+/** 多语言文本：zh-CN 必填（回退基准），其余语言可选 */
+const LocaleText = z.record(z.string().min(1)).refine((m) => !!m[DEFAULT_LOCALE], {
+  message: `必须包含 "${DEFAULT_LOCALE}" 字段（回退基准）`,
+});
+
+/** F1 动作库 schema——webhook 共享字段在 meta 预留；F8 起文本为 locale map */
 export const ExerciseSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/, "id 须为 kebab-case"),
-  name: z.string().min(1, "动作名不能为空"),
+  name: LocaleText,
   emoji: z.string().min(1),
-  cue: z.string().min(1, "一句指引不能为空"),
-  steps: z.array(z.string().min(1)).min(2).max(4),
+  cue: LocaleText,
+  steps: z
+    .object({ [DEFAULT_LOCALE]: z.array(z.string().min(1)).min(2).max(4) })
+    .catchall(z.array(z.string().min(1)).min(2).max(4)),
   durationSec: z.number().int().min(10).max(120),
   animation: z.enum(["stretch", "neck", "wrists", "legs", "heels", "shoulders", "breath"]),
   meta: z
@@ -17,7 +25,16 @@ export const ExerciseSchema = z.object({
     .default({ source: "micro-pet", shareable: true }),
 });
 
-export type Exercise = z.infer<typeof ExerciseSchema>;
+export interface Exercise {
+  id: string;
+  name: Record<string, string>;
+  emoji: string;
+  cue: Record<string, string>;
+  steps: Record<string, string[]>;
+  durationSec: number;
+  animation: string;
+  meta: { source: string; shareable: boolean };
+}
 
 export const MIN_EXERCISES = 7;
 
@@ -28,7 +45,26 @@ export function loadExercises(raw: unknown): Exercise[] {
   if (arr.length < MIN_EXERCISES) {
     throw new Error(`动作库需 ≥${MIN_EXERCISES} 个动作，当前 ${arr.length}`);
   }
-  return arr;
+  return arr as Exercise[];
+}
+
+/** 按语言取本地化视图（缺语言回退 zh-CN，F8 V2） */
+export interface LocalizedExercise {
+  id: string;
+  emoji: string;
+  name: string;
+  cue: string;
+  steps: string[];
+}
+
+export function localizeExercise(ex: Exercise, locale: Locale): LocalizedExercise {
+  return {
+    id: ex.id,
+    emoji: ex.emoji,
+    name: pickLocalized(ex.name, locale),
+    cue: pickLocalized(ex.cue, locale),
+    steps: ex.steps[locale] ?? ex.steps[DEFAULT_LOCALE] ?? [],
+  };
 }
 
 /** 随机抽一个动作（rand 可注入，便于测试） */
