@@ -14,6 +14,10 @@
     "petMe": "pet me~"
   },
   "meow": "Meow~",
+  "hints": {
+    "setupCopiedTitle": "📋 AI Setup Assistant Prompt copied",
+    "setupCopiedCue": "Paste it to your AI assistant (ZCode / Claude / WorkBuddy, etc.) — it will interview you and customize your plan"
+  },
   "report": {
     "title": "# 🐱 Micro-pet Weekly Report (since {monday})",
     "streak": "Current streak: **{n} day(s)**",

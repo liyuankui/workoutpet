@@ -14,6 +14,10 @@
     "petMe": "摸摸头～"
   },
   "meow": "喵～",
+  "hints": {
+    "setupCopiedTitle": "📋 已复制 AI 配置助手 Prompt",
+    "setupCopiedCue": "现在粘给你的 AI 助手（ZCode / Claude / WorkBuddy 等），它会采访你并定制提醒计划"
+  },
   "report": {
     "title": "# 🐱 Micro-pet 周报（{monday} 起）",
     "streak": "当前 streak：**{n} 天**",

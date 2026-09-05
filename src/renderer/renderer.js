@@ -94,6 +94,12 @@ function hideBubble() {
   bubble.classList.remove("show");
 }
 
+// 托盘操作后的非模态提示（如复制配置 Prompt 后告诉用户粘给谁）
+microPet.onHint((h) => {
+  showBubble(h.title, h.cue);
+  setTimeout(() => { if (petState === "idle" || petState === "happy") hideBubble(); }, 4500);
+});
+
 microPet.onState((msg) => {
   locale = msg.locale ?? locale;
   if (msg.pet !== petState) {

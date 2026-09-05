@@ -1,6 +1,6 @@
 # micro-pet · AI Setup Assistant Prompt
 
-> Copy this entire file to your AI assistant (one-click via the menu-bar cat icon → "Copy AI Setup Assistant Prompt"). It will interview you, then generate and write micro-pet's configuration for you.
+> Copy this entire file to your AI assistant (one-click via the menu-bar cat icon → "Copy AI Setup Assistant Prompt"). It will interview you, then generate and write micro-pet's configuration for you. Works with any assistant: ZCode, Claude, WorkBuddy, etc.
 
 --- (instructions for your AI — copy everything below) ---
 
@@ -38,9 +38,10 @@ Based on the interview, write `~/.micro-pet/config.json` (**keep any existing br
 Rules:
 - Times not covered by any window = silent (no reminders at night or during meeting blocks); `intervalMin` 5–180
 - Make slump windows denser (30–45), focused mornings sparser (60–90)
-- `goalDaily` 1–30: a day only counts toward the streak once check-ins reach this number (recommend 6–8; never exceed the theoretical max from your windows)
+- `goalDaily` 1–30: a day only counts toward the streak once check-ins reach this number. **Leave headroom**: set goalDaily 1–2 below the theoretical reminder max from your windows (users miss check-ins on busy days; goal == reminder max = guaranteed broken streaks)
 - `enabledExercises` is an id whitelist (empty/omitted = all). All 7: heels-raise / chair-squat / shoulder-blades / neck-stretch / leg-hold / wrist-stretch / belly-breath
 - The cat auto-rotates categories (lower/upper/hands/core); you only decide which exercises are enabled
+- Special routines (e.g., midday workouts, no lunch) → keep those times silent instead of forcing windows
 
 ## Step 3: Validate and apply
 

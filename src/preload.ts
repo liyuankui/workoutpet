@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld("microPet", {
   onState: (cb: (msg: PetStateMsg) => void) => {
     ipcRenderer.on("pet-state", (_e, msg: PetStateMsg) => cb(msg));
   },
+  onHint: (cb: (hint: { title: string; cue: string }) => void) => {
+    ipcRenderer.on("pet-hint", (_e, hint: { title: string; cue: string }) => cb(hint));
+  },
   petClick: () => ipcRenderer.send("pet-click"),
   ready: () => ipcRenderer.send("pet-ready"),
   // sprite 静态数据（可序列化，供渲染端画像素猫）

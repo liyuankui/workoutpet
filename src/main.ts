@@ -315,6 +315,14 @@ function main() {
             } catch {
               clipboard.writeText("See https://github.com/liyuankui/workoutpet — docs/agent-setup-prompt.md");
             }
+            // 非模态反馈：猫举气泡告诉用户「粘到哪」
+            win.show();
+            const h = strings(currentLocale()).hints;
+            if (machine.pet === "idle") setSizeAnchored(FULL_W, FULL_H); // idle 时扩窗容纳气泡
+            win.webContents.send("pet-hint", { title: h.setupCopiedTitle, cue: h.setupCopiedCue });
+            setTimeout(() => {
+              if (machine.pet === "idle") setSizeAnchored(CAT_W, CAT_H); // 4.5s 后收回
+            }, 4600);
           },
         },
         {

@@ -1,6 +1,6 @@
 # micro-pet · AI 配置助手 Prompt
 
-> 把本文件全部内容复制给你的 AI 助手（菜单栏小猫图标 →「复制 AI 配置助手 Prompt」一键获取）。它会采访你，然后替你生成并写入 micro-pet 的配置文件。
+> 把本文件全部内容复制给你的 AI 助手（菜单栏小猫图标 →「复制 AI 配置助手 Prompt」一键获取）。它会采访你，然后替你生成并写入 micro-pet 的配置文件。可粘贴给：ZCode、Claude、WorkBuddy 等任意 AI 助手。
 
 ---（以下为给你的 AI 的指令，请完整复制）---
 
@@ -38,9 +38,10 @@
 规则：
 - `windows` 不覆盖的时间段 = 静默（夜间/会议密集期不放提醒）；`intervalMin` 5-180
 - 倦怠时段 intervalMin 调密（30-45），专注上午调疏（60-90）
-- `goalDaily` 1-30：当日打卡达到此数才算 streak 达标日（建议 6-8，勿超过 windows 理论上限）
+- `goalDaily` 1-30：当日打卡达到此数才算 streak 达标日。**留缓冲**：goalDaily 应比窗口理论提醒上限少 1-2 次（用户忙碌日会漏打卡，全靠提醒数达标 = streak 必断）
 - `enabledExercises` 是动作 id 白名单（可空/省略=全部）。全部 7 个：heels-raise 提踵 / chair-squat 座椅微蹲 / shoulder-blades 肩胛后缩 / neck-stretch 颈部拉伸 / leg-hold 抬腿 / wrist-stretch 手腕 / belly-breath 收腹呼吸
 - 猫会自动「类别轮换」（下肢/肩颈/手腕/核心），你只需决定启用哪些动作
+- 用户作息特殊（如中午运动不吃午饭）→ 对应时段直接静默，不必硬塞窗口
 
 ## 第三步：验证并生效
 
