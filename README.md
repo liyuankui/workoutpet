@@ -2,51 +2,81 @@
 
 > 一只像素猫，定时在屏幕角落示范坐姿微运动——摸头打卡，本地养 streak。「陪着你」，而非「打断你」。
 
-## 快速开始
+[English](README.en.md)
 
-```bash
-bun install
-cd node_modules/electron && ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" node install.js && cd ../..  # bun 拦 postinstall，需手动装二进制
-bun start              # 构建并启动（猫出现在屏幕右下角）
-bun test               # 全部测试
-bun run report         # 查看周报（markdown）
-```
+| 静候 | 提醒（一起来） | 打卡成功 |
+|:---:|:---:|:---:|
+| ![idle](docs/screenshot-idle.png) | ![remind](docs/screenshot-remind.png) | ![happy](docs/screenshot-happy.png) |
 
-演示模式：`MICROPET_INTERVAL_SEC=180 bun start`（3 分钟一次提醒）。
-
-**普通用户安装**（macOS Apple Silicon）：
+## 安装（macOS · Apple Silicon）
 
 ```bash
 brew install --cask liyuankui/tap/micro-pet
 ```
 
-未签名应用，首次打开需右键 → 打开。
+未签名应用，首次打开需**右键 → 打开**（或在终端 `xattr -dr com.apple.quarantine /Applications/micro-pet.app` 后直接开）。也可从 [Releases](https://github.com/liyuankui/workoutpet/releases) 下载 zip 手动解压到 /Applications。
+
+## 🤖 Paste to your agent
+
+把下面这段直接粘给你的 AI 助手，让它替你装好并验证：
+
+```text
+帮我在这台 Mac 上安装并验证微运动桌宠 micro-pet：
+1. 执行 brew install --cask liyuankui/tap/micro-pet
+2. 未签名首启处理：xattr -dr com.apple.quarantine /Applications/micro-pet.app
+3. 启动：open /Applications/micro-pet.app
+4. 等待 8 秒后验证：cat ~/.micro-pet/heartbeat.json 应存在且 "visible": true，
+   屏幕右下角应出现一只橘色像素猫
+5. 菜单栏小猫图标可：立刻提醒（演示）/ 切换语言 / 复制周报 / 退出
+```
 
 ## 怎么用
 
-- 猫每小时（可配 30-120 分钟）随机做一个微运动示范 + 气泡指引
-- 提醒状态**点猫 = 打卡**（happy + 记 streak）；平时点 = 随机互动反应（蹭蹭 / 跳一下 / 喵～ / 打滚）
-- 2 分钟不理它就安静回去（不催促）
-- 中英双语：跟随系统语言，菜单栏小猫图标可切换
-- 数据全本地：`~/.micro-pet/streak.json`，删除即重置
+- 猫每小时（可配 30-120 分钟）随机示范一个微运动 + 气泡指引，2 分钟不理它就安静回去（不催促）
+- **提醒状态点猫 = 打卡**（happy + 记 streak）
+- **平时点猫 = 随机互动**：蹭蹭 / 跳一下 / 喵～ / 打滚（500ms 节流）
+- 中英双语：跟随系统语言，托盘可切换
+- 周报：托盘「复制周报」或 `bunx --bun micro-pet report`（需源码环境），数据在 `~/.micro-pet/streak.json`
 
-## 架构
+## 配置（`~/.micro-pet/`）
 
+| 文件 | 字段 | 说明 |
+|------|------|------|
+| `config.json` | `intervalMin` | 提醒间隔分钟，30-120，默认 60；改后重启 app 生效 |
+| | `locale` | `"zh-CN"` / `"en"`；缺省跟随系统（托盘切换即写此处） |
+| | `brx` / `bry` | 猫的右下角坐标，拖动后自动保存，重启保持 |
+| `exercises.json` | — | **自定义动作库**（存在即覆盖内置），见下 |
+| `streak.json` | — | 打卡数据，纯本地；删除即重置 |
+
+### 自定义动作库
+
+```bash
+micro-pet init-exercises   # 生成模板 ~/.micro-pet/exercises.json（需源码环境：bun run src/bin/micro-pet.ts init-exercises）
 ```
-src/core/      纯逻辑（无 Electron 依赖，全部可测）
-  exercises/   动作库（双语）+ zod 校验
-  stateMachine 状态机 idle→remind→happy→idle
-  streak       本地打卡记录 + streak 计算
-  reactions    点击互动反应池（随机 + 节流）
-  pixelcat     16×16 像素猫帧（字符画即资产）
-  locales/     zh-CN / en 语言文件
-src/main.ts    Electron 主进程（窗口/托盘/状态机/打卡落盘）
-src/renderer/  渲染端（canvas 动画 + 气泡 + 点击反应）
+
+编辑模板后重启 app 生效。字段：
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `id` | ✓ | kebab-case，唯一 |
+| `name` / `cue` | ✓ | `{"zh-CN": "…", "en": "…"}`（zh-CN 必填，en 可选，缺失回退中文） |
+| `steps` | ✓ | 每语言 ≥2 步 |
+| `durationSec` | ✓ | 10-120 |
+| `animation` | ✓ | `stretch/neck/wrists/legs/heels/shoulders/breath`（动画映射） |
+| `emoji` | ✓ | 气泡展示用 |
+
+JSON 非法或字段缺失时**自动回退内置库**，不会崩（`~/.micro-pet/boot.log` 可查加载来源）。
+
+## 开发
+
+```bash
+bun install
+cd node_modules/electron && ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" node install.js && cd ../..  # bun 拦 postinstall，需手动装二进制
+bun start                    # 构建并启动
+bun test                     # 50 项测试
 ```
 
-## 项目文档
-
-产品方向与范围约束（VISION/SPEC/OPS）在本地知识库 `~/Notebooks/workspace/micro-pet/`。新功能先进 SPEC 再写代码。
+演示模式：`MICROPET_INTERVAL_SEC=5 bun start`。架构与产品约束见 `src/` 注释与本地知识库 harness。
 
 ## 决策记录
 

@@ -3,8 +3,9 @@ import { join, dirname } from "node:path";
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { createMachine, dispatch, DEFAULT_CONFIG, type MachineConfig, type MachineState } from "./core/stateMachine";
-import { loadExercises, localizeExercise, type Exercise } from "./core/exercises";
+import { localizeExercise, resolveExercises, type Exercise } from "./core/exercises";
 import exercisesJson from "./core/exercises.json";
+import { userPaths, readUserExercisesRaw } from "./core/userConfig";
 import { appendCheckIn, currentStreak, readDB, localDateKey } from "./core/streak";
 import { renderReport } from "./core/report";
 import { FRAMES, frameToRGBA } from "./core/pixelcat";
@@ -77,7 +78,13 @@ let tray: Tray | null = null;
 function main() {
   app.dock?.hide(); // 桌宠不占 Dock
 
-  const exercises: Exercise[] = loadExercises(exercisesJson);
+  // 动作库：用户覆盖（~/.micro-pet/exercises.json）优先，非法回退内置
+  const paths = userPaths(HOME);
+  const { exercises, source: exSource, error: exError } = resolveExercises(
+    readUserExercisesRaw(paths),
+    exercisesJson,
+  );
+  blog(`exercises source=${exSource}${exError ? ` error=${exError}` : ""}`);
   const cfg = readConfig();
 
   function currentLocale(): Locale {

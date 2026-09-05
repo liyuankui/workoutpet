@@ -72,3 +72,18 @@ export function pickRandom<T>(list: readonly T[], rand: () => number = Math.rand
   if (list.length === 0) throw new Error("列表为空，无法抽取");
   return list[Math.floor(rand() * list.length)]!;
 }
+
+/**
+ * 动作库解析：用户覆盖优先（~/.micro-pet/exercises.json），非法/缺失回退内置库。
+ * 返回 [exercises, source]——source 供诊断与 CLI 提示。
+ */
+export function resolveExercises(
+  userRaw: unknown,
+  bundledRaw: unknown,
+): { exercises: Exercise[]; source: "user" | "bundled"; error?: string } {
+  try {
+    return { exercises: loadExercises(userRaw), source: "user" };
+  } catch (err) {
+    return { exercises: loadExercises(bundledRaw), source: "bundled", error: String(err) };
+  }
+}
