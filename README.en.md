@@ -35,6 +35,7 @@ Read the docs directly: [Install](docs/agent-install-prompt.en.md) · [Setup](do
 ## How it works
 
 - Every hour (configurable 30–120 min) the cat demonstrates a random micro-exercise with a speech bubble; if you ignore it for 2 minutes it quietly goes back (no nagging)
+- **Hold and drag the cat = move it**: park it wherever it doesn't block your screen; the position is remembered across restarts
 - **Click the cat during a reminder = check in** (happy + streak)
 - **Click any other time = random reaction**: wiggle / jump / meow~ / roll (500ms throttle)
 - Bilingual (zh-CN / en): follows your system language, switchable from the tray

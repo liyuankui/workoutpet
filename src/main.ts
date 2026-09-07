@@ -12,6 +12,7 @@ import { FRAMES, frameToRGBA } from "./core/pixelcat";
 import { isLocale, resolveLocale, strings, type Locale } from "./core/i18n";
 import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedule";
 import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemetry";
+import { clampWindow } from "./core/dragging";
 
 // ---------- boot 日志（最先执行：LS 启动无 stdout，靠它诊断"静默僵尸"） ----------
 const BOOT_LOG = join(process.env.MICROPET_HOME ?? join(homedir(), ".micro-pet"), "boot.log");
@@ -290,6 +291,16 @@ function main() {
   // ---------- IPC ----------
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
   ipcMain.on("pet-ready", () => broadcast());
+  // 手动拖动：渲染端 Pointer Events 转发增量（non-activating 窗口 CSS drag 失效）
+  // 钳制到猫当前所在屏的工作区，至少留 40px 防拖飞；moved 事件防抖存 brx/bry 复位用
+  ipcMain.on("pet-drag-by", (_e, dx: number, dy: number) => {
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+    const [x, y] = win.getPosition();
+    const [w, h] = win.getSize();
+    const wa = screen.getDisplayMatching({ x, y, width: w, height: h }).workArea;
+    const p = clampWindow(x + dx, y + dy, w, h, wa);
+    win.setPosition(p.x, p.y, false);
+  });
 
   // ---------- Tray（：隐藏/退出 + 演示 + 语言切换 ） ----------
   const icon = nativeImage.createFromBuffer(Buffer.from(frameToRGBA(FRAMES.happy)), {

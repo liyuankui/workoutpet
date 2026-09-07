@@ -117,7 +117,37 @@ microPet.onState((msg) => {
   }
 });
 
+// 拖动：按住猫移动即拖窗口（macOS non-activating 窗口 CSS drag 失效，走手动增量）
+// 位移 ≥ 阈值才算拖动；轻点仍触发 click（打卡/反应），拖完的尾随 click 吞掉
+const stage = document.getElementById("stage");
+let drag = null;               // { startX, startY, moved }
+let suppressClickUntil = 0;
+
+stage.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0) return;
+  drag = { startX: e.clientX, startY: e.clientY, moved: false };
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  if (!drag.moved) {
+    if (!microPet.shouldDrag(drag.startX, drag.startY, e.clientX, e.clientY)) return;
+    drag.moved = true;
+    document.body.classList.add("dragging");
+  }
+  microPet.dragBy(e.movementX, e.movementY);
+});
+function endDrag() {
+  if (!drag) return;
+  if (drag.moved) suppressClickUntil = performance.now() + 300; // pointerup 后 click 仍会派发
+  drag = null;
+  document.body.classList.remove("dragging");
+}
+stage.addEventListener("pointerup", endDrag);
+stage.addEventListener("pointercancel", endDrag);
+
 canvas.addEventListener("click", () => {
+  if (performance.now() < suppressClickUntil) return; // 刚拖完，不是点击
   const now = performance.now();
   if (petState === "remind") {
     microPet.petClick(); // 打卡走主进程（语义不变）
