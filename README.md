@@ -104,6 +104,8 @@ bun test                     # 50 项测试
 
 演示模式：`MICROPET_INTERVAL_SEC=5 bun start`。架构与设计取舍见 `src/` 注释。
 
+发版（CI 自动）：改 `package.json` 版本 → commit → `git tag vX.Y.Z && git push origin master --tags` → [Actions](https://github.com/liyuankui/workoutpet/actions) 自动测试、打包（ditto 保 symlink）、发 Release；job summary 里的 sha256 抄进 [homebrew-tap](https://github.com/liyuankui/homebrew-tap) 的 `Casks/micro-pet.rb` 即完成 brew 分发。
+
 ## 决策记录
 
 - **Electron 而非 Tauri**（2026-09-04）：本机 Xcode CLT 损坏（`cc` dlopen 失败），Rust 链接必挂；Electron 预编译二进制无本地编译依赖，主进程/渲染端仍全 TS。

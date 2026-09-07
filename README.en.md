@@ -102,7 +102,9 @@ bun start                    # build & launch
 bun test                     # 50 tests
 ```
 
-Demo mode: `MICROPET_INTERVAL_SEC=5 bun start`. Architecture and design trade-offs live in the `src/` comments.
+Demo mode: `MICROPET_INTERVAL_SEC=5 bun start`.
+
+Releasing (CI automated): bump `package.json` version → commit → `git tag vX.Y.Z && git push origin master --tags` → [Actions](https://github.com/liyuankui/workoutpet/actions) tests, packages (ditto to keep symlinks) and publishes the Release; copy the sha256 from the job summary into `Casks/micro-pet.rb` in [homebrew-tap](https://github.com/liyuankui/homebrew-tap) to finish the brew distribution. Architecture and design trade-offs live in the `src/` comments.
 
 ## Decision log
 

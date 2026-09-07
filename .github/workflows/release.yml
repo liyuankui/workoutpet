@@ -15,7 +15,7 @@ jobs:
   build-release:
     runs-on: macos-14 # arm64 runner（public repo 免费）
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: oven-sh/setup-bun@v2
 
