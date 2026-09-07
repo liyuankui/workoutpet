@@ -1,0 +1,63 @@
+# 发布流水线：push tag（v*）→ 测试 → 打包 → GitHub Release
+# workflow_dispatch 手动档：只验证构建链（打包 + sha 摘要），不创建 release
+# cask bump 留手动：sha256 见 job summary，抄进 liyuankui/homebrew-tap Casks/micro-pet.rb
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # 上传 release asset
+
+jobs:
+  build-release:
+    runs-on: macos-14 # arm64 runner（public repo 免费）
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: 校验 tag 与 package.json 版本一致（防 tag 名与产物版本漂移）
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          [ "$TAG" = "$PKG" ] || { echo "::error::tag v$TAG != package.json $PKG"; exit 1; }
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun test
+
+      - run: bun run build
+
+      - name: 打包 .app（asar）
+        run: npx @electron/packager . micro-pet --platform=darwin --arch=arm64 --out=release-builds --overwrite --asar
+
+      - name: 打 zip（ditto 保留 symlink——zip 跟随 symlink 会把 Electron Framework 双包成 380MB）
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          ditto -c -k --keepParent release-builds/micro-pet-darwin-arm64/micro-pet.app \
+            "micro-pet-${VERSION}-macos-arm64.zip"
+
+      - name: 摘要（cask bump 手动抄此处）
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          SHA=$(shasum -a 256 "micro-pet-${VERSION}-macos-arm64.zip" | awk '{print $1}')
+          {
+            echo "## 产物"
+            echo "- zip: \`micro-pet-${VERSION}-macos-arm64.zip\`"
+            echo "- sha256: \`${SHA}\`"
+            echo "- cask url: \`https://github.com/liyuankui/workoutpet/releases/download/v${VERSION}/micro-pet-${VERSION}-macos-arm64.zip\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "发布 Release（body 取 tag 指向 commit 的 message，即本仓库 Add/Fix 惯例发布说明）"
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          NOTES=$(git log -1 --pretty=%B)
+          gh release create "$GITHUB_REF_NAME" "micro-pet-${VERSION}-macos-arm64.zip" \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes "$NOTES"
