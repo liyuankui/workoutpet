@@ -12,7 +12,7 @@ import { FRAMES, frameToRGBA } from "./core/pixelcat";
 import { isLocale, resolveLocale, strings, type Locale } from "./core/i18n";
 import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedule";
 import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemetry";
-import { clampWindow } from "./core/dragging";
+import { computeDragPosition } from "./core/dragging";
 
 // ---------- boot 日志（最先执行：LS 启动无 stdout，靠它诊断"静默僵尸"） ----------
 const BOOT_LOG = join(process.env.MICROPET_HOME ?? join(homedir(), ".micro-pet"), "boot.log");
@@ -291,14 +291,21 @@ function main() {
   // ---------- IPC ----------
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
   ipcMain.on("pet-ready", () => broadcast());
-  // 手动拖动：渲染端 Pointer Events 转发增量（non-activating 窗口 CSS drag 失效）
+  // 手动拖动：渲染端只发开始/移动信号，坐标权威在 getCursorScreenPoint
+  // （movementX 在窗口自身移动后语义被 macOS 补发的 mousemove 污染，弃用）
   // 钳制到猫当前所在屏的工作区，至少留 40px 防拖飞；moved 事件防抖存 brx/bry 复位用
-  ipcMain.on("pet-drag-by", (_e, dx: number, dy: number) => {
-    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
-    const [x, y] = win.getPosition();
+  let dragAnchor: { cx: number; cy: number; wx: number; wy: number } | null = null;
+  ipcMain.on("pet-drag-start", () => {
+    const c = screen.getCursorScreenPoint();
+    const [wx, wy] = win.getPosition();
+    dragAnchor = { cx: c.x, cy: c.y, wx, wy };
+  });
+  ipcMain.on("pet-drag-move", () => {
+    if (!dragAnchor) return;
+    const c = screen.getCursorScreenPoint();
     const [w, h] = win.getSize();
-    const wa = screen.getDisplayMatching({ x, y, width: w, height: h }).workArea;
-    const p = clampWindow(x + dx, y + dy, w, h, wa);
+    const wa = screen.getDisplayMatching({ x: dragAnchor.wx, y: dragAnchor.wy, width: w, height: h }).workArea;
+    const p = computeDragPosition(dragAnchor, c, w, h, wa);
     win.setPosition(p.x, p.y, false);
   });
 

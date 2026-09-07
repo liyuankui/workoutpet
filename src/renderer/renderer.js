@@ -126,16 +126,20 @@ let suppressClickUntil = 0;
 stage.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return;
   drag = { startX: e.clientX, startY: e.clientY, moved: false };
-  stage.setPointerCapture(e.pointerId);
 });
-stage.addEventListener("pointermove", (e) => {
+// move/up 绑 window 且不用 setPointerCapture：capture 会改写后续事件目标，
+// 浏览器合成的 click 不再落在 canvas 上 → 打卡/互动全失效（v0.5.1 回归教训）
+// 位移不用 movementX（窗口自身移动后 macOS 补发 mousemove 会污染其语义）：
+// 每帧只发信号，坐标权威在主进程 getCursorScreenPoint，按屏幕位绝对差移动，幂等
+window.addEventListener("pointermove", (e) => {
   if (!drag) return;
   if (!drag.moved) {
     if (!microPet.shouldDrag(drag.startX, drag.startY, e.clientX, e.clientY)) return;
     drag.moved = true;
+    microPet.dragStart();
     document.body.classList.add("dragging");
   }
-  microPet.dragBy(e.movementX, e.movementY);
+  microPet.dragMove();
 });
 function endDrag() {
   if (!drag) return;
@@ -143,8 +147,9 @@ function endDrag() {
   drag = null;
   document.body.classList.remove("dragging");
 }
-stage.addEventListener("pointerup", endDrag);
-stage.addEventListener("pointercancel", endDrag);
+window.addEventListener("pointerup", endDrag);
+window.addEventListener("pointercancel", endDrag);
+window.addEventListener("blur", endDrag); // 失焦兜底：不许拖拽状态卡死
 
 canvas.addEventListener("click", () => {
   if (performance.now() < suppressClickUntil) return; // 刚拖完，不是点击

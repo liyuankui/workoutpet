@@ -27,7 +27,8 @@ contextBridge.exposeInMainWorld("microPet", {
   fmt: (template: string, vars: Record<string, string | number>) => fmt(template, vars),
   // 反应池（纯函数：节流 + 随机）
   react: (lastReactAt: number, now: number) => react(lastReactAt, now),
-  // 拖动（纯函数判定 + 增量移动窗口）
+  // 拖动（纯函数判定 + 信号式移动：坐标权威在主进程 getCursorScreenPoint）
   shouldDrag: (startX: number, startY: number, x: number, y: number) => shouldStartDrag(startX, startY, x, y),
-  dragBy: (dx: number, dy: number) => ipcRenderer.send("pet-drag-by", dx, dy),
+  dragStart: () => ipcRenderer.send("pet-drag-start"),
+  dragMove: () => ipcRenderer.send("pet-drag-move"),
 });

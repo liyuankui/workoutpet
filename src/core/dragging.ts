@@ -27,3 +27,14 @@ export function clampWindow(
     y: Math.min(Math.max(y, wa.y), wa.y + wa.height - keep),
   };
 }
+
+/** 拖动目标位：锚点窗口位 + 光标屏幕位差（幂等：同光标同结果，无位移放大回路） */
+export function computeDragPosition(
+  anchor: { cx: number; cy: number; wx: number; wy: number },
+  cursor: { x: number; y: number },
+  w: number,
+  h: number,
+  wa: { x: number; y: number; width: number; height: number },
+): { x: number; y: number } {
+  return clampWindow(anchor.wx + cursor.x - anchor.cx, anchor.wy + cursor.y - anchor.cy, w, h, wa);
+}

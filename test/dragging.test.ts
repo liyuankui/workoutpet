@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { shouldStartDrag, clampWindow } from "../src/core/dragging";
+import { shouldStartDrag, clampWindow, computeDragPosition } from "../src/core/dragging";
 
 describe("F19 拖动", () => {
   describe("shouldStartDrag：点击 vs 拖动判定", () => {
@@ -42,6 +42,28 @@ describe("F19 拖动", () => {
 
     test("拖出底部 → 保留底部 40px", () => {
       expect(clampWindow(500, 5000, 150, 150, wa).y).toBe(25 + 1055 - 40);
+    });
+  });
+
+  describe("computeDragPosition：光标屏幕位差驱动（幂等，无放大回路）", () => {
+    const wa = { x: 0, y: 25, width: 1920, height: 1055 };
+    const anchor = { cx: 800, cy: 600, wx: 1704, wy: 922 }; // 光标锚点 + 窗口锚点
+
+    test("光标移动多少窗口跟多少", () => {
+      expect(computeDragPosition(anchor, { x: 850, y: 612 }, 150, 150, wa)).toEqual({ x: 1754, y: 934 });
+      expect(computeDragPosition(anchor, { x: 760, y: 590 }, 150, 150, wa)).toEqual({ x: 1664, y: 912 }); // 反向
+    });
+
+    test("幂等：同光标重复计算结果不变（防位移倍增回归）", () => {
+      const a = computeDragPosition(anchor, { x: 900, y: 650 }, 150, 150, wa);
+      const b = computeDragPosition(anchor, { x: 900, y: 650 }, 150, 150, wa);
+      expect(a).toEqual(b);
+      expect(a).toEqual({ x: 1804, y: 972 });
+    });
+
+    test("拖出屏仍被钳制", () => {
+      const p = computeDragPosition(anchor, { x: 5000, y: 5000 }, 150, 150, wa);
+      expect(p).toEqual({ x: 1880, y: 1040 });
     });
   });
 });
