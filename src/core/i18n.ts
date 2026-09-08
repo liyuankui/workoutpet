@@ -28,6 +28,11 @@ export function fmt(template: string, vars: Record<string, string | number>): st
   return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
 }
 
+/** 语言切换入口 label：始终显示目标语言自名——想切换的人（读得懂目标语言）才找得到 */
+export function oppositeLocaleLabel(locale: string): string {
+  return locale === "zh-CN" ? "English" : "简体中文";
+}
+
 /** 动作库 locale map 取值，缺语言回退 zh-CN */
 export function pickLocalized(map: Record<string, string>, locale: Locale): string {
   return map[locale] ?? map[DEFAULT_LOCALE] ?? Object.values(map)[0] ?? "";

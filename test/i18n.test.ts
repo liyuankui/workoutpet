@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fmt, isLocale, resolveLocale, strings, pickLocalized } from "../src/core/i18n";
+import { fmt, isLocale, resolveLocale, strings, pickLocalized, oppositeLocaleLabel } from "../src/core/i18n";
 import zh from "../src/locales/zh-CN.json";
 import en from "../src/locales/en.json";
 
@@ -44,5 +44,16 @@ describe("F8 多语言", () => {
     expect(isLocale("jp")).toBe(false);
     expect(pickLocalized({ "zh-CN": "中" }, "en")).toBe("中");
     expect(pickLocalized({}, "en")).toBe("");
+  });
+});
+
+describe("语言切换入口自名（F29）", () => {
+  test("中文环境显示 English，英文环境显示 简体中文（想切的人看得懂）", () => {
+    expect(oppositeLocaleLabel("zh-CN")).toBe("English");
+    expect(oppositeLocaleLabel("en")).toBe("简体中文");
+  });
+
+  test("未知语言回退按 en 处理 → 显示简体中文", () => {
+    expect(oppositeLocaleLabel("fr")).toBe("简体中文");
   });
 });

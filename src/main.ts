@@ -9,7 +9,7 @@ import { userPaths, readUserExercisesRaw } from "./core/userConfig";
 import { appendCheckIn, currentStreak, readDB, localDateKey } from "./core/streak";
 import { renderReport } from "./core/report";
 import { FRAMES, frameToRGBA } from "./core/pixelcat";
-import { isLocale, resolveLocale, strings, type Locale } from "./core/i18n";
+import { isLocale, oppositeLocaleLabel, resolveLocale, strings, type Locale } from "./core/i18n";
 import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedule";
 import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemetry";
 import { computeDragPosition } from "./core/dragging";
@@ -409,11 +409,10 @@ function main() {
           },
         },
         {
-          label: t.language,
-          submenu: [
-            { label: "简体中文", type: "radio", checked: currentLocale() === "zh-CN", click: () => setLocale("zh-CN") },
-            { label: "English", type: "radio", checked: currentLocale() === "en", click: () => setLocale("en") },
-          ],
+          // 语言切换入口只显示目标语言自名（中文环境见 English / 英文环境见 简体中文）：
+          // 当前语言的标题想切的人看不懂；默认仍跟随系统 locale
+          label: oppositeLocaleLabel(currentLocale()),
+          click: () => setLocale(currentLocale() === "zh-CN" ? "en" : "zh-CN"),
         },
         { type: "separator" },
         {

@@ -5,7 +5,6 @@
     "remindNow": "Remind Me Now (demo)",
     "copyReport": "Copy Weekly Report",
     "agentSetup": "Copy AI Setup Assistant Prompt",
-    "language": "Language",
     "telemetry": "Anonymous telemetry (opt-out)",
     "quit": "Quit"
   },
