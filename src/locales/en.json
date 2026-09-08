@@ -12,7 +12,14 @@
   "bubble": {
     "letsGo": "let's go",
     "good": "Nice! Day {n} streak 🎉",
-    "petMe": "pet me~"
+    "petMe": "pet me~",
+    "cling": [
+      "One little move with me? Please~",
+      "Just a minute, follow me~",
+      "I'll wait right here, no rush~",
+      "A tiny move makes my day~",
+      "Pet me and let's go~"
+    ]
   },
   "meow": "Meow~",
   "hints": {

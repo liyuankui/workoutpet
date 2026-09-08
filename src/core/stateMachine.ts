@@ -7,10 +7,12 @@ export type ExercisePicker = (exercises: readonly Exercise[], rand: () => number
 /**
  * 定时提醒状态机（纯逻辑，时钟可注入）
  * 状态转移：idle →(到点) remind →(摸头) happy →(3s) idle
- *           remind →(2 分钟无人理睬，不催促) idle
+ *           remind →(2 分钟无人理睬) idle{retryPending}（顺延：8 分钟后再来，非重计整轮）
+ *           remind →(超时且连续跳过达阈值) cling（赖着撒娇：点猫=打卡）
+ *           cling →(摸头) happy →(3s) idle；cling 常驻无超时
  *           idle 状态摸头 = 蹭蹭（wiggle），不打卡
  */
-export type PetState = "idle" | "remind" | "happy";
+export type PetState = "idle" | "remind" | "happy" | "cling";
 
 export interface MachineConfig {
   /** 提醒间隔（默认 60 分钟，可配 30-120） */
@@ -19,6 +21,10 @@ export interface MachineConfig {
   remindTimeoutMs: number;
   /** happy 动画时长 */
   happyMs: number;
+  /** 超时是否顺延（P1 语义：运动没完成是顺延不是跳过）；缺省 false = 旧行为 */
+  retryOnTimeout?: boolean;
+  /** 连续跳过多少次进入 cling 撒娇赖留；缺省/0 = 永不 */
+  clingAfterSkips?: number;
 }
 
 export const DEFAULT_CONFIG: MachineConfig = {
@@ -34,6 +40,10 @@ export interface MachineState {
   lastCycleAt: number;
   remindStartedAt: number;
   happyStartedAt: number;
+  /** 连续超时未理次数（打卡清零）——撒娇档位依据 */
+  skipStreak: number;
+  /** 有顺延中的运动：主进程下次间隔改用 retryMs，直到打卡 */
+  retryPending: boolean;
 }
 
 export type PetEvent =
@@ -50,7 +60,7 @@ export interface DispatchResult {
 }
 
 export function createMachine(
-  exercises: readonly Exercise[],
+  exercises: Exercise[],
   startAt = 0,
   rand: () => number = Math.random,
 ): MachineState {
@@ -62,7 +72,14 @@ export function createMachine(
     lastCycleAt: startAt,
     remindStartedAt: 0,
     happyStartedAt: 0,
+    skipStreak: 0,
+    retryPending: false,
   };
+}
+
+/** 顺延中的间隔选择：retryPending 时用 retryMs（8 分钟级），否则常规轮转间隔 */
+export function effectiveIntervalMs(machine: MachineState, baseMs: number, retryMs: number): number {
+  return machine.retryPending ? retryMs : baseMs;
 }
 
 export function dispatch(
@@ -81,15 +98,18 @@ export function dispatch(
     s.pet = "remind";
     s.exercise = pick(exercises, rand);
     s.remindStartedAt = ev.now;
+    s.retryPending = false; // 提醒兑现，间隔回到常规（再超时会重新顺延）
     return { state: s, checkedIn: null, wiggle: false };
   }
 
   if (ev.type === "PET") {
-    if (s.pet === "remind") {
+    if (s.pet === "remind" || s.pet === "cling") {
       const done = s.exercise!;
       s.pet = "happy";
       s.exercise = done;
       s.happyStartedAt = ev.now;
+      s.skipStreak = 0; // 打卡即和解：撒娇档位与顺延一并清零
+      s.retryPending = false;
       return { state: s, checkedIn: done, wiggle: false };
     }
     return { state: s, checkedIn: null, wiggle: true }; // 蹭蹭，不打卡
@@ -101,17 +121,30 @@ export function dispatch(
       s.pet = "remind";
       s.exercise = pick(exercises, rand);
       s.remindStartedAt = ev.now;
+      s.retryPending = false;
     }
     return none;
   }
   if (s.pet === "remind") {
     if (ev.now - s.remindStartedAt >= cfg.remindTimeoutMs) {
-      // 无人理睬 → 安静回 idle，重新计时（不催促）
-      s.pet = "idle";
-      s.exercise = null;
-      s.lastCycleAt = ev.now;
+      s.skipStreak += 1;
+      const clingN = cfg.clingAfterSkips ?? 0;
+      if (clingN > 0 && s.skipStreak >= clingN) {
+        // 赖着不走：保留动作与 FULL 窗，点猫=打卡，无超时
+        s.pet = "cling";
+        s.retryPending = false;
+      } else {
+        // 无人理睬 → 安静回 idle（不催促）；顺延语义：下次间隔由 retryPending 决定
+        s.pet = "idle";
+        s.exercise = null;
+        s.lastCycleAt = ev.now;
+        if (cfg.retryOnTimeout) s.retryPending = true;
+      }
     }
     return none;
+  }
+  if (s.pet === "cling") {
+    return none; // 常驻撒娇：软话轮换由主进程 broadcast 驱动，点击即打卡
   }
   // happy
   if (ev.now - s.happyStartedAt >= cfg.happyMs) {

@@ -2,7 +2,7 @@ import { app, BrowserWindow, Tray, Menu, clipboard, nativeImage, screen, ipcMain
 import { join, dirname } from "node:path";
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { createMachine, dispatch, DEFAULT_CONFIG, type MachineConfig, type MachineState } from "./core/stateMachine";
+import { createMachine, dispatch, effectiveIntervalMs, DEFAULT_CONFIG, type MachineConfig, type MachineState } from "./core/stateMachine";
 import { localizeExercise, resolveExercises, pickBalanced, type Exercise } from "./core/exercises";
 import exercisesJson from "./core/exercises.json";
 import { userPaths, readUserExercisesRaw } from "./core/userConfig";
@@ -43,6 +43,10 @@ interface AppConfig {
   schedule?: unknown;
   /** 遥测开关：缺省开，false = 零网络请求 */
   telemetry?: boolean;
+  /** 顺延重试间隔分钟（P1：超时未完成 → 顺延非跳过） */
+  retryMin?: number;
+  /** 连续跳过多少次猫赖着撒娇（0 = 永不） */
+  clingAfterSkips?: number;
 }
 
 const HOME = process.env.MICROPET_HOME ?? join(app.getPath("home"), ".micro-pet");
@@ -143,10 +147,15 @@ function main() {
 
   // dev 覆盖：MICROPET_INTERVAL_SEC / MICROPET_REMIND_TIMEOUT_SEC（测试/演示用）
   const envInterval = Number(process.env.MICROPET_INTERVAL_SEC ?? 0) * 1000;
+  // dev 覆盖：MICROPET_RETRY_SEC（验证顺延链用；生产取 config retryMin，默认 8 分钟）
+  const retryMs = Number(process.env.MICROPET_RETRY_SEC ?? 0) * 1000 || Math.max(1, Number(cfg.retryMin) || 8) * 60_000;
   const machineCfg: MachineConfig = {
     ...DEFAULT_CONFIG,
     intervalMs: envInterval > 0 ? envInterval : safeIntervalMin(cfg.intervalMin) * 60_000,
     remindTimeoutMs: Number(process.env.MICROPET_REMIND_TIMEOUT_SEC ?? 0) * 1000 || DEFAULT_CONFIG.remindTimeoutMs,
+    retryOnTimeout: true, // F24 顺延哲学：运动没完成是顺延不是跳过
+    // 缺省 3 次进入撒娇；显式 0 = 关闭（Math.max 钳负数）
+    clingAfterSkips: cfg.clingAfterSkips === undefined ? 3 : Math.max(0, Number(cfg.clingAfterSkips) || 0),
   };
 
   // ---------- 窗口（：透明置顶、不抢焦点） ----------
@@ -206,6 +215,7 @@ function main() {
 
   // ---------- 状态机循环 ----------
   let machine: MachineState = createMachine(exercises, Date.now());
+  let clingLastResayAt: number | null = null; // 撒娇软话上次轮换时刻
 
   // 静默原因节流记录（10 分钟一条）：窗外/隐藏期间留「活着」的痕迹
   let lastQuietLogAt = 0;
@@ -276,14 +286,22 @@ function main() {
 
     if (machine.pet !== prevPet) {
       // 窗口先变尺寸，再通知渲染端出气泡
-      if (machine.pet === "remind" || machine.pet === "happy") setSizeAnchored(FULL_W, FULL_H);
+      if (machine.pet === "remind" || machine.pet === "happy" || machine.pet === "cling") setSizeAnchored(FULL_W, FULL_H);
       else setSizeAnchored(CAT_W, CAT_H);
       if (machine.pet === "remind" && machine.exercise) {
-        rlog(`remind 开始 · ${machine.exercise.id} · 窗口 ${win.getPosition().join(",")}`);
+        rlog(`remind 开始 · ${machine.exercise.id} · 窗口 ${win.getPosition().join(",")}${machine.retryPending ? " · 顺延重试" : ""}`);
         tel("remind_fired", { exercise: machine.exercise.id });
       }
       if (prevPet === "remind" && machine.pet === "idle") {
-        rlog("remind 超时未理 → 安静回 idle（不催促），重新计时");
+        rlog(`remind 超时未理（第 ${machine.skipStreak} 次）→ ${machine.retryPending ? `顺延：${Math.round(retryMs / 60000)} 分钟后再来` : "安静回 idle（不催促），重新计时"}`);
+      }
+      if (machine.pet === "cling") {
+        clingLastResayAt = Date.now();
+        rlog(`进入撒娇赖留 · 连续跳过 ${machine.skipStreak} 次 · 点猫即打卡`);
+        tel("cling_start", { skipStreak: machine.skipStreak }); // H3 验证信号
+      }
+      if (prevPet === "cling" && machine.pet === "happy") {
+        rlog("撒娇和解：打卡 ✓ 猫满足了");
       }
       broadcast();
     }
@@ -301,6 +319,16 @@ function main() {
         return;
       }
       cfgNow = { ...machineCfg, intervalMs: iv * 60_000 };
+    }
+    // F24 顺延：retryPending 时下一次提醒改用 retryMs（8 分钟级），打卡后自动回常规轮转
+    cfgNow = { ...cfgNow, intervalMs: effectiveIntervalMs(machine, cfgNow.intervalMs, retryMs) };
+    // F23 撒娇赖留：cling 常驻，每 10 分钟换一句软话（broadcast 重发 → 渲染端随机选）
+    if (machine.pet === "cling") {
+      if (now - (clingLastResayAt ?? 0) >= 10 * 60_000) {
+        clingLastResayAt = now;
+        broadcast();
+      }
+      return;
     }
     // 猫被隐藏期间不打扰：顺延计时，重新显示后不补弹
     if (machine.pet === "idle" && !win.isVisible()) {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createMachine, dispatch, DEFAULT_CONFIG, type MachineConfig } from "../src/core/stateMachine";
+import { createMachine, dispatch, effectiveIntervalMs, DEFAULT_CONFIG, type MachineConfig } from "../src/core/stateMachine";
 import { loadExercises } from "../src/core/exercises";
 import raw from "../src/core/exercises.json";
 
@@ -70,5 +70,111 @@ describe("F3 状态机", () => {
     expect(m.lastCycleAt).toBe(5_000);
     const r = dispatch(m, { type: "TICK", now: 5_000 + 60_000 }, cfg, ex, fixedRand);
     expect(r.state.pet).toBe("remind"); // 下一轮到点
+  });
+});
+
+describe("F24 顺延重试（运动没完成是顺延不是跳过）", () => {
+  const retryCfg: MachineConfig = { ...cfg, retryOnTimeout: true };
+
+  test("超时 → idle + retryPending（下次用顺延间隔），skipStreak 计数", () => {
+    let m = createMachine(ex, 0, fixedRand);
+    m = dispatch(m, { type: "TICK", now: 60_000 }, retryCfg, ex, fixedRand).state;
+    const r = dispatch(m, { type: "TICK", now: 180_000 }, retryCfg, ex, fixedRand);
+    expect(r.state.pet).toBe("idle");
+    expect(r.state.retryPending).toBe(true);
+    expect(r.state.skipStreak).toBe(1);
+  });
+
+  test("effectiveIntervalMs：retryPending 用 retryMs，打卡语义恢复后用 base", () => {
+    const m = { ...createMachine(ex, 0, fixedRand), retryPending: true };
+    expect(effectiveIntervalMs(m, 75 * 60_000, 8 * 60_000)).toBe(8 * 60_000);
+    expect(effectiveIntervalMs(createMachine(ex, 0), 75 * 60_000, 8 * 60_000)).toBe(75 * 60_000);
+  });
+
+  test("顺延兑现：retryPending 时到 retryMs 即提醒（非整轮间隔）", () => {
+    let m = createMachine(ex, 0, fixedRand);
+    m = dispatch(m, { type: "FORCE", now: 1_000 }, retryCfg, ex, fixedRand).state;
+    m = dispatch(m, { type: "TICK", now: 1_000 + 120_000 }, retryCfg, ex, fixedRand).state; // 超时顺延
+    const interval = effectiveIntervalMs(m, 75 * 60_000, 8 * 60_000);
+    const r = dispatch(m, { type: "TICK", now: m.lastCycleAt + interval }, retryCfg, ex, fixedRand);
+    expect(r.state.pet).toBe("remind"); // 8 分钟级即来
+    expect(r.state.retryPending).toBe(false); // 提醒兑现，pending 清
+  });
+
+  test("顺延挂起中点猫仍是蹭蹭；顺延到点提醒后打卡 → skipStreak 与 retryPending 双清零", () => {
+    let m = createMachine(ex, 0, fixedRand);
+    m = dispatch(m, { type: "FORCE", now: 1_000 }, retryCfg, ex, fixedRand).state;
+    m = dispatch(m, { type: "TICK", now: 121_000 }, retryCfg, ex, fixedRand).state; // 超时 → idle(retryPending)
+    const wig = dispatch(m, { type: "PET", now: 122_000 }, retryCfg, ex, fixedRand);
+    expect(wig.state.pet).toBe("idle"); // 挂起中无提醒可打，仍是蹭蹭
+    expect(wig.wiggle).toBe(true);
+    m = dispatch(m, { type: "TICK", now: m.lastCycleAt + 8 * 60_000 }, retryCfg, ex, fixedRand).state; // 顺延到点
+    expect(m.pet).toBe("remind");
+    const r = dispatch(m, { type: "PET", now: m.remindStartedAt + 1_000 }, retryCfg, ex, fixedRand);
+    expect(r.state.pet).toBe("happy");
+    expect(r.state.skipStreak).toBe(0);
+    expect(r.state.retryPending).toBe(false);
+  });
+
+  test("retryOnTimeout 缺省（旧语义）→ 超时不顺延", () => {
+    let m = createMachine(ex, 0, fixedRand);
+    m = dispatch(m, { type: "TICK", now: 60_000 }, cfg, ex, fixedRand).state;
+    const r = dispatch(m, { type: "TICK", now: 180_000 }, cfg, ex, fixedRand);
+    expect(r.state.retryPending).toBe(false);
+  });
+});
+
+describe("F23 撒娇赖留（cling）", () => {
+  const clingCfg: MachineConfig = { ...cfg, retryOnTimeout: true, clingAfterSkips: 3 };
+
+  /** 时间轴：FORCE 进提醒，每轮 = 超时(2min) → （顺延 8min 到点再提醒） */
+  function skipN(n: number, cfgX: MachineConfig) {
+    let m = createMachine(ex, 0, fixedRand);
+    let t = 1_000;
+    m = dispatch(m, { type: "FORCE", now: t }, cfgX, ex, fixedRand).state;
+    for (let i = 0; i < n; i++) {
+      t += 120_000; // 超时
+      m = dispatch(m, { type: "TICK", now: t }, cfgX, ex, fixedRand).state;
+      if (m.pet === "idle" && i < n - 1) {
+        t += 8 * 60_000; // 顺延到点再来一轮提醒
+        m = dispatch(m, { type: "TICK", now: t }, cfgX, ex, fixedRand).state;
+        expect(m.pet).toBe("remind");
+      }
+    }
+    return m;
+  }
+
+  test("连续跳过达阈值 → cling（赖着不走，保留动作）", () => {
+    const m = skipN(3, clingCfg);
+    expect(m.pet).toBe("cling");
+    expect(m.exercise).not.toBeNull();
+    expect(m.skipStreak).toBe(3);
+  });
+
+  test("未达阈值 → 仍是顺延循环（idle）", () => {
+    const m = skipN(2, clingCfg);
+    expect(m.pet).toBe("idle");
+    expect(m.retryPending).toBe(true);
+  });
+
+  test("cling 常驻：TICK 永不超时/不回 idle", () => {
+    const m = skipN(3, clingCfg);
+    const r = dispatch(m, { type: "TICK", now: Date.now() + 86_400_000 }, clingCfg, ex, fixedRand);
+    expect(r.state.pet).toBe("cling");
+  });
+
+  test("cling 点猫 = 打卡和解 → happy，全清零", () => {
+    const m = skipN(3, clingCfg);
+    const r = dispatch(m, { type: "PET", now: 999_999 }, clingCfg, ex, fixedRand);
+    expect(r.state.pet).toBe("happy");
+    expect(r.checkedIn!.id).toBe(m.exercise!.id);
+    expect(r.state.skipStreak).toBe(0);
+    expect(r.state.retryPending).toBe(false);
+  });
+
+  test("FORCE 在 cling → remind（托盘演示可打断撒娇）", () => {
+    const m = skipN(3, clingCfg);
+    const r = dispatch(m, { type: "FORCE", now: 1_000_000 }, clingCfg, ex, fixedRand);
+    expect(r.state.pet).toBe("remind");
   });
 });

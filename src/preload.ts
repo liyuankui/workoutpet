@@ -5,7 +5,7 @@ import { react } from "./core/reactions";
 import { shouldStartDrag } from "./core/dragging";
 
 export interface PetStateMsg {
-  pet: "idle" | "remind" | "happy";
+  pet: "idle" | "remind" | "happy" | "cling";
   exercise: { id: string; name: string; emoji: string; cue: string } | null;
   streakDays: number;
   locale: string;

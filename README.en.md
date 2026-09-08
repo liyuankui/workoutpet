@@ -37,6 +37,8 @@ Read the docs directly: [Install](docs/agent-install-prompt.en.md) · [Setup](do
 - Every hour (configurable 30–120 min) the cat demonstrates a random micro-exercise with a speech bubble; if you ignore it for 2 minutes it quietly goes back (no nagging)
 - **Hold and drag the cat = move it**: park it wherever it doesn't block your screen; the position is remembered across restarts
 - **Click the cat during a reminder = check in** (happy + streak)
+- **Skipped ≠ gone**: an ignored exercise comes back after 8 min (`retryMin`) — deferred, not dropped
+- **Clingy mode**: after 3 consecutive skips the cat stays and cycles soft lines waiting for you — click it to reconcile with a check-in
 - **Click any other time = random reaction**: wiggle / jump / meow~ / roll (500ms throttle)
 - Bilingual (zh-CN / en): follows your system language, switchable from the tray
 - Weekly report: tray "Copy Weekly Report"; data lives in `~/.micro-pet/streak.json`
@@ -51,6 +53,8 @@ Read the docs directly: [Install](docs/agent-install-prompt.en.md) · [Setup](do
 | | `enabledExercises` | Exercise id whitelist (default all); the cat auto-rotates lower/upper/hands/core categories for balance |
 | | `locale` | `"zh-CN"` / `"en"`; defaults to system language (tray switch writes here) |
 | | `brx` / `bry` | Cat's bottom-right corner; saved on drag, restored on restart |
+| | `retryMin` | Retry interval in minutes after a skip (default 8; defer, don't drop) |
+| | `clingAfterSkips` | Consecutive skips before clingy mode (default 3, 0 = off) |
 | `exercises.json` | — | **Custom exercise library** (overrides the built-in when present), see below |
 | `streak.json` | — | Check-in data, purely local; delete to reset |
 

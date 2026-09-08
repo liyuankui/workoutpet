@@ -28,6 +28,13 @@ const ANIMS = {
     ["happy", 220, 0, 0],
     ["happy", 220, 0, -3], // bounce
   ],
+  // 撒娇赖留（P1 复用现有帧）：期待地看着你 + 小幅摇摆的粘人节奏
+  cling: [
+    ["happy", 900, 0, 0],
+    ["idleWag", 350, 0, 0],
+    ["happy", 500, 0, -2],
+    ["idleA", 600, 0, 0],
+  ],
 };
 
 let petState = "idle";
@@ -109,6 +116,12 @@ microPet.onState((msg) => {
   const s = microPet.strings(locale);
   if (msg.pet === "remind" && msg.exercise) {
     showBubble(`${msg.exercise.emoji} ${msg.exercise.name} · ${s.bubble.letsGo}`, msg.exercise.cue);
+  } else if (msg.pet === "cling") {
+    // 撒娇赖留：每次 broadcast（含 10 分钟轮换）随机换一句软话——可爱不指责
+    const pool = s.bubble.cling ?? [];
+    const line = pool.length ? pool[Math.floor(Math.random() * pool.length)] : s.bubble.petMe;
+    const ex = msg.exercise;
+    showBubble(ex ? `${line}（${ex.emoji} ${ex.name}）` : line, "");
   } else if (msg.pet === "happy") {
     showBubble(microPet.fmt(s.bubble.good, { n: msg.streakDays }), s.bubble.petMe);
     setTimeout(hideBubble, 2500);
@@ -154,8 +167,8 @@ window.addEventListener("blur", endDrag); // 失焦兜底：不许拖拽状态�
 canvas.addEventListener("click", () => {
   if (performance.now() < suppressClickUntil) return; // 刚拖完，不是点击
   const now = performance.now();
-  if (petState === "remind") {
-    microPet.petClick(); // 打卡走主进程（语义不变）
+  if (petState === "remind" || petState === "cling") {
+    microPet.petClick(); // 打卡走主进程（cling 撒娇时点它 = 和解打卡）
     return;
   }
   // ：idle/happy 点击 → 随机反应池（500ms 节流）
