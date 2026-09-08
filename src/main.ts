@@ -13,6 +13,7 @@ import { isLocale, resolveLocale, strings, type Locale } from "./core/i18n";
 import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedule";
 import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemetry";
 import { computeDragPosition } from "./core/dragging";
+import { appendPetLog } from "./core/petlog";
 
 // ---------- boot 日志（最先执行：LS 启动无 stdout，靠它诊断"静默僵尸"） ----------
 const BOOT_LOG = join(process.env.MICROPET_HOME ?? join(homedir(), ".micro-pet"), "boot.log");
@@ -51,8 +52,14 @@ const DB_PATH = join(HOME, "streak.json");
 /** 遥测（opt-out）：关 = 零网络请求；仅 app_open/remind_fired/check_in 三个匿名事件 */
 const APP_VERSION = app.getVersion();
 const telUid = readOrCreateUid(HOME);
+// 提醒可观测性日志：状态转移 + 调度判定 + 遥测失败（远端不可查时本地可回溯）
+const REMIND_LOG = join(HOME, "remind.log");
+const rlog = (msg: string) => appendPetLog(REMIND_LOG, `[${new Date().toISOString()}] ${msg}\n`);
 const tel = (event: string, props: Record<string, unknown> = {}) => {
-  if (telemetryEnabled(readConfig())) void sendTelemetry(event, props, telUid, APP_VERSION);
+  if (telemetryEnabled(readConfig()))
+    sendTelemetry(event, props, telUid, APP_VERSION).catch((err) =>
+      rlog(`遥测发送失败 ${event}: ${String(err)}`),
+    );
 };
 
 function readConfig(): AppConfig {
@@ -163,7 +170,8 @@ function main() {
     },
   });
   win.setAlwaysOnTop(true, "screen-saver");
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
+  // 全屏也显示：v0.5.2 前 visibleOnFullScreen:false 让全屏工作中的提醒整段不可见（用户报「从没提醒」实为提醒了没看见）
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
   const wa = screen.getPrimaryDisplay().workArea;
   const defaultX = wa.x + wa.width - CAT_W - 8;
@@ -198,6 +206,14 @@ function main() {
 
   // ---------- 状态机循环 ----------
   let machine: MachineState = createMachine(exercises, Date.now());
+
+  // 静默原因节流记录（10 分钟一条）：窗外/隐藏期间留「活着」的痕迹
+  let lastQuietLogAt = 0;
+  const quietLog = (now: number, why: string) => {
+    if (now - lastQuietLogAt < 10 * 60_000) return;
+    lastQuietLogAt = now;
+    rlog(`静默 · ${why}（期间不提醒，恢复后重新计时）`);
+  };
 
   // 心跳日志：窗口可见性/尺寸/位置落盘，供无 GUI 权限时端到端验证
   const heartbeat = () => {
@@ -254,6 +270,7 @@ function main() {
         exerciseId: result.checkedIn.id,
         ts: Date.now(),
       });
+      rlog(`打卡 ✓ ${result.checkedIn.id}`);
       tel("check_in", { exercise: result.checkedIn.id });
     }
 
@@ -262,7 +279,11 @@ function main() {
       if (machine.pet === "remind" || machine.pet === "happy") setSizeAnchored(FULL_W, FULL_H);
       else setSizeAnchored(CAT_W, CAT_H);
       if (machine.pet === "remind" && machine.exercise) {
+        rlog(`remind 开始 · ${machine.exercise.id} · 窗口 ${win.getPosition().join(",")}`);
         tel("remind_fired", { exercise: machine.exercise.id });
+      }
+      if (prevPet === "remind" && machine.pet === "idle") {
+        rlog("remind 超时未理 → 安静回 idle（不催促），重新计时");
       }
       broadcast();
     }
@@ -276,6 +297,7 @@ function main() {
       const iv = intervalMinutes(schedule, new Date(now));
       if (iv === null) {
         if (machine.pet === "idle") machine = { ...machine, lastCycleAt: now }; // 静默期顺延，出窗即恢复
+        quietLog(now, "schedule 窗外");
         return;
       }
       cfgNow = { ...machineCfg, intervalMs: iv * 60_000 };
@@ -283,6 +305,7 @@ function main() {
     // 猫被隐藏期间不打扰：顺延计时，重新显示后不补弹
     if (machine.pet === "idle" && !win.isVisible()) {
       machine = { ...machine, lastCycleAt: now };
+      quietLog(now, "猫被托盘隐藏");
       return;
     }
     handle({ type: "TICK", now }, cfgNow);
@@ -385,6 +408,9 @@ function main() {
 
   console.log(
     `[micro-pet] alive · interval=${Math.round(machineCfg.intervalMs / 60000)}min · locale=${currentLocale()} · db=${DB_PATH}`,
+  );
+  rlog(
+    `app 启动 · v${APP_VERSION} · schedule=${schedule ? schedule.windows.map((w) => `${w.from}-${w.to}@${w.intervalMin}min`).join(" ") : "off"} · interval=${Math.round(machineCfg.intervalMs / 60000)}min`,
   );
   tel("app_open", { exercises: exercises.length, scheduleWindows: schedule?.windows.length ?? 0 });
 }
