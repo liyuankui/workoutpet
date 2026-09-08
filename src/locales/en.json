@@ -18,7 +18,10 @@
       "I'll wait right here, no rush~",
       "A tiny move makes my day~",
       "Pet me and let's go~"
-    ]
+    ],
+    "todayGoalN": "Today {n}/{m}",
+    "todayN": "Today: {n} ✓",
+    "goalMet": "Daily goal met 🎉"
   },
   "meow": "Meow~",
   "hints": {
@@ -31,6 +34,7 @@
     "today": "Today: {n} check-in(s)",
     "week": "This week: {n} check-in(s)",
     "dist": "## Exercise Distribution",
-    "empty": "(No check-ins yet — go pet the cat)"
+    "empty": "(No check-ins yet — go pet the cat)",
+    "completion": "Follow-through this week: {n}%"
   }
 }

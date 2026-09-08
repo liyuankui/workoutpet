@@ -7,6 +7,8 @@ export interface CheckIn {
   date: string;
   exerciseId: string;
   ts: number;
+  /** 实际跟做秒数（F25 会话陪练；旧记录无此字段） */
+  durationSec?: number;
 }
 
 export interface StreakDB {
@@ -83,6 +85,11 @@ export function currentStreak(records: CheckIn[], todayKey: string, goalDaily?: 
     cursor.setDate(cursor.getDate() - 1);
   }
   return streak;
+}
+
+/** 今日打卡次数（F28 举牌「今日 N/M」） */
+export function countToday(records: CheckIn[], todayKey: string): number {
+  return records.reduce((n, r) => (r.date === todayKey ? n + 1 : n), 0);
 }
 
 /** 本周（周一起）打卡统计 */

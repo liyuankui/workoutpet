@@ -6,13 +6,14 @@ export type ExercisePicker = (exercises: readonly Exercise[], rand: () => number
 
 /**
  * 定时提醒状态机（纯逻辑，时钟可注入）
- * 状态转移：idle →(到点) remind →(摸头) happy →(3s) idle
+ * 状态转移：idle →(到点) remind →(点猫) session（F25 会话陪练：跟做+倒数）
+ *           session →(durationSec 走完) happy + 打卡；session →(再点=提前结束，也算完成) happy + 打卡
  *           remind →(2 分钟无人理睬) idle{retryPending}（顺延：8 分钟后再来，非重计整轮）
- *           remind →(超时且连续跳过达阈值) cling（赖着撒娇：点猫=打卡）
- *           cling →(摸头) happy →(3s) idle；cling 常驻无超时
- *           idle 状态摸头 = 蹭蹭（wiggle），不打卡
+ *           remind →(超时且连续跳过达阈值) cling（赖着撒娇：点猫=进会话）
+ *           cling →(点猫) session；cling 常驻无超时
+ *           happy →(3s) idle；idle 状态摸头 = 蹭蹭（wiggle），不打卡
  */
-export type PetState = "idle" | "remind" | "happy" | "cling";
+export type PetState = "idle" | "remind" | "happy" | "cling" | "session";
 
 export interface MachineConfig {
   /** 提醒间隔（默认 60 分钟，可配 30-120） */
@@ -44,6 +45,8 @@ export interface MachineState {
   skipStreak: number;
   /** 有顺延中的运动：主进程下次间隔改用 retryMs，直到打卡 */
   retryPending: boolean;
+  /** 会话开始时刻（F25 陪练计时） */
+  sessionStartedAt: number;
 }
 
 export type PetEvent =
@@ -53,8 +56,10 @@ export type PetEvent =
 
 export interface DispatchResult {
   state: MachineState;
-  /** 本次 PET 完成打卡的动作（null = 未打卡） */
+  /** 本次 PET 完成打卡的动作（null = 未打卡；session 结束时非空） */
   checkedIn: Exercise | null;
+  /** 本次打卡实际跟做秒数（F25：完整率度量；null = 未打卡） */
+  checkedInSec: number | null;
   /** true = 蹭蹭反馈（idle/happy 下摸头） */
   wiggle: boolean;
 }
@@ -74,6 +79,7 @@ export function createMachine(
     happyStartedAt: 0,
     skipStreak: 0,
     retryPending: false,
+    sessionStartedAt: 0,
   };
 }
 
@@ -91,7 +97,19 @@ export function dispatch(
   pick: ExercisePicker = (ex, r) => pickRandom(ex, r),
 ): DispatchResult {
   const s = { ...m };
-  const none: DispatchResult = { state: s, checkedIn: null, wiggle: false };
+  const none: DispatchResult = { state: s, checkedIn: null, checkedInSec: null, wiggle: false };
+
+  /** 会话收尾：打卡 + happy（自动到时或提前点——动了就好，都算完成） */
+  const finishSession = (now: number): DispatchResult => {
+    const done = s.exercise!;
+    const sec = Math.max(1, Math.round((now - s.sessionStartedAt) / 1000));
+    s.pet = "happy";
+    s.exercise = done;
+    s.happyStartedAt = now;
+    s.skipStreak = 0;
+    s.retryPending = false;
+    return { state: s, checkedIn: done, checkedInSec: sec, wiggle: false };
+  };
 
   if (ev.type === "FORCE") {
     if (s.pet === "remind") return none; // 提醒中不重复触发
@@ -99,20 +117,18 @@ export function dispatch(
     s.exercise = pick(exercises, rand);
     s.remindStartedAt = ev.now;
     s.retryPending = false; // 提醒兑现，间隔回到常规（再超时会重新顺延）
-    return { state: s, checkedIn: null, wiggle: false };
+    return { state: s, checkedIn: null, checkedInSec: null, wiggle: false };
   }
 
   if (ev.type === "PET") {
     if (s.pet === "remind" || s.pet === "cling") {
-      const done = s.exercise!;
-      s.pet = "happy";
-      s.exercise = done;
-      s.happyStartedAt = ev.now;
-      s.skipStreak = 0; // 打卡即和解：撒娇档位与顺延一并清零
-      s.retryPending = false;
-      return { state: s, checkedIn: done, wiggle: false };
+      // F25：点猫 = 开始会话陪练（猫跟做 + 倒数），不再是瞬发打卡
+      s.pet = "session";
+      s.sessionStartedAt = ev.now;
+      return { state: s, checkedIn: null, checkedInSec: null, wiggle: false };
     }
-    return { state: s, checkedIn: null, wiggle: true }; // 蹭蹭，不打卡
+    if (s.pet === "session") return finishSession(ev.now); // 提前结束也算完成（动了就好）
+    return { state: s, checkedIn: null, checkedInSec: null, wiggle: true }; // 蹭蹭，不打卡
   }
 
   // TICK
@@ -143,8 +159,14 @@ export function dispatch(
     }
     return none;
   }
+  if (s.pet === "session") {
+    // durationSec 走完自动收工（练习时长数据在动作上，状态机不读盘）
+    const durMs = (s.exercise?.durationSec ?? 30) * 1000;
+    if (ev.now - s.sessionStartedAt >= durMs) return finishSession(ev.now);
+    return none;
+  }
   if (s.pet === "cling") {
-    return none; // 常驻撒娇：软话轮换由主进程 broadcast 驱动，点击即打卡
+    return none; // 常驻撒娇：软话轮换由主进程 broadcast 驱动，点击进会话
   }
   // happy
   if (ev.now - s.happyStartedAt >= cfg.happyMs) {

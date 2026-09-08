@@ -37,3 +37,20 @@ describe("F5 周报（双语）", () => {
     expect(renderReport({ version: 1, records: [] }, ex, Date.UTC(2026, 8, 4, 6), "UTC", "en")).toContain("pet the cat");
   });
 });
+
+describe("F25 跟做完整率", () => {
+  test("本周带 durationSec 的打卡 → 输出完整率；提前结束按实际比例计", () => {
+    const db = { version: 1 as const, records: [
+      { date: "2026-09-08", exerciseId: "neck-stretch", ts: 1, durationSec: 30 }, // 应做 30
+      { date: "2026-09-08", exerciseId: "neck-stretch", ts: 2, durationSec: 15 }, // 15/30
+    ] };
+    const out = renderReport(db, loadExercises(raw), new Date("2026-09-08T12:00:00").getTime(), "Asia/Shanghai", "zh-CN");
+    expect(out).toContain("完整率 75%"); // (30/30 + 15/30)/2
+  });
+
+  test("旧记录无 durationSec → 不输出完整率行", () => {
+    const db = { version: 1 as const, records: [{ date: "2026-09-08", exerciseId: "neck-stretch", ts: 1 }] };
+    const out = renderReport(db, loadExercises(raw), new Date("2026-09-08T12:00:00").getTime(), "Asia/Shanghai", "zh-CN");
+    expect(out).not.toContain("完整率");
+  });
+});

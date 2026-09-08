@@ -23,6 +23,19 @@ export function renderReport(
     : fmt(t.today, { n: todayCount });
   const byId = new Map(exercises.map((e) => [e.id, e]));
 
+  // F25 跟做完整率：本周打卡中带 durationSec 的，实际/应做时长均值（旧记录无字段不参与）
+  const withDur = db.records.filter(
+    (r) => r.date >= monday && r.date <= todayKey && typeof r.durationSec === "number" && byId.get(r.exerciseId),
+  );
+  const completion =
+    withDur.length > 0
+      ? Math.round(
+          (withDur.reduce((sum, r) => sum + r.durationSec! / (byId.get(r.exerciseId)!.durationSec || 1), 0) /
+            withDur.length) *
+            100,
+        )
+      : null;
+
   const dist = [...perExercise.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([id, n]) => {
@@ -36,6 +49,7 @@ export function renderReport(
     fmt(t.streak, { n: streak }),
     todayLine,
     fmt(t.week, { n: weekCount }),
+    ...(completion !== null ? [fmt(t.completion, { n: completion })] : []),
     "",
     t.dist,
     ...(dist.length > 0 ? dist : [t.empty]),

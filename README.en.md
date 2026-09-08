@@ -36,7 +36,8 @@ Read the docs directly: [Install](docs/agent-install-prompt.en.md) · [Setup](do
 
 - Every hour (configurable 30–120 min) the cat demonstrates a random micro-exercise with a speech bubble; if you ignore it for 2 minutes it quietly goes back (no nagging)
 - **Hold and drag the cat = move it**: park it wherever it doesn't block your screen; the position is remembered across restarts
-- **Click the cat during a reminder = check in** (happy + streak)
+- **Click the cat during a reminder = start a guided session**: the cat joins in — countdown bubble + step cues; finish the duration for an auto check-in, or click again to end early (**any movement counts**)
+- After checking in the cat holds up a "Today N/M" sign; weekly report adds follow-through rate
 - **Skipped ≠ gone**: an ignored exercise comes back after 8 min (`retryMin`) — deferred, not dropped
 - **Clingy mode**: after 3 consecutive skips the cat stays and cycles soft lines waiting for you — click it to reconcile with a check-in
 - **Click any other time = random reaction**: wiggle / jump / meow~ / roll (500ms throttle)

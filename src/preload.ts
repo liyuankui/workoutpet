@@ -5,10 +5,16 @@ import { react } from "./core/reactions";
 import { shouldStartDrag } from "./core/dragging";
 
 export interface PetStateMsg {
-  pet: "idle" | "remind" | "happy" | "cling";
-  exercise: { id: string; name: string; emoji: string; cue: string } | null;
+  pet: "idle" | "remind" | "happy" | "cling" | "session";
+  exercise: { id: string; name: string; emoji: string; cue: string; steps: string[] } | null;
   streakDays: number;
   locale: string;
+  /** 会话陪练：剩余秒与当前步骤提示 */
+  sessionRemainSec?: number;
+  sessionStep?: string;
+  /** 举牌：今日打卡数与目标（goalDaily 缺省时 todayGoal 为空） */
+  todayCount?: number;
+  todayGoal?: number;
 }
 
 contextBridge.exposeInMainWorld("microPet", {

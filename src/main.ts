@@ -6,7 +6,7 @@ import { createMachine, dispatch, effectiveIntervalMs, DEFAULT_CONFIG, type Mach
 import { localizeExercise, resolveExercises, pickBalanced, type Exercise } from "./core/exercises";
 import exercisesJson from "./core/exercises.json";
 import { userPaths, readUserExercisesRaw } from "./core/userConfig";
-import { appendCheckIn, currentStreak, readDB, localDateKey } from "./core/streak";
+import { appendCheckIn, countToday, currentStreak, readDB, localDateKey } from "./core/streak";
 import { renderReport } from "./core/report";
 import { FRAMES, frameToRGBA } from "./core/pixelcat";
 import { isLocale, oppositeLocaleLabel, resolveLocale, strings, type Locale } from "./core/i18n";
@@ -250,14 +250,34 @@ function main() {
 
   function broadcast() {
     const locale = currentLocale();
+    const view = machine.exercise ? localizeExercise(machine.exercise, locale) : null;
+    // 会话陪练（F25）：倒数秒 + 当前步骤（按 durationSec 均分轮播）
+    let sessionRemainSec: number | undefined;
+    let sessionStep: string | undefined;
+    if (machine.pet === "session" && machine.exercise && view) {
+      const dur = machine.exercise.durationSec;
+      const elapsed = (Date.now() - machine.sessionStartedAt) / 1000;
+      sessionRemainSec = Math.max(0, Math.ceil(dur - elapsed));
+      const stepDur = dur / Math.max(1, view.steps.length);
+      sessionStep = view.steps[Math.min(view.steps.length - 1, Math.floor(elapsed / Math.max(stepDur, 1)))] ?? "";
+    }
+    // 举牌（F28）：happy（刚打卡）与 cling（撒娇时亮进度）需要今日计数
+    let todayCount: number | undefined;
+    if (machine.pet === "happy" || machine.pet === "cling") {
+      todayCount = countToday(readDB(DB_PATH).records, localDateKey(Date.now()));
+    }
     win.webContents.send("pet-state", {
       pet: machine.pet,
-      exercise: machine.exercise ? localizeExercise(machine.exercise, locale) : null,
+      exercise: view,
       streakDays:
         machine.pet === "happy"
           ? currentStreak(readDB(DB_PATH).records, localDateKey(Date.now()), goalDaily)
           : 0, // streak 只在 happy 气泡需要，避免每秒读盘
       locale,
+      sessionRemainSec,
+      sessionStep,
+      todayCount,
+      todayGoal: goalDaily,
     });
   }
 
@@ -279,15 +299,19 @@ function main() {
         date: localDateKey(Date.now()),
         exerciseId: result.checkedIn.id,
         ts: Date.now(),
+        durationSec: result.checkedInSec ?? undefined, // F25 实际跟做秒数（完整率度量）
       });
-      rlog(`打卡 ✓ ${result.checkedIn.id}`);
-      tel("check_in", { exercise: result.checkedIn.id });
+      const full = machine.exercise ? result.checkedInSec === machine.exercise.durationSec : false;
+      rlog(`打卡 ✓ ${result.checkedIn.id} · 跟做 ${result.checkedInSec}s${full ? "（完整）" : ""}`);
+      tel("check_in", { exercise: result.checkedIn.id, durationSec: result.checkedInSec ?? undefined });
     }
 
     if (machine.pet !== prevPet) {
       // 窗口先变尺寸，再通知渲染端出气泡
-      if (machine.pet === "remind" || machine.pet === "happy" || machine.pet === "cling") setSizeAnchored(FULL_W, FULL_H);
+      if (machine.pet === "remind" || machine.pet === "happy" || machine.pet === "cling" || machine.pet === "session")
+        setSizeAnchored(FULL_W, FULL_H);
       else setSizeAnchored(CAT_W, CAT_H);
+      if (machine.pet === "session") rlog(`会话陪练开始 · ${machine.exercise?.id ?? "?"} · 再点猫可提前结束（也算完成）`);
       if (machine.pet === "remind" && machine.exercise) {
         rlog(`remind 开始 · ${machine.exercise.id} · 窗口 ${win.getPosition().join(",")}${machine.retryPending ? " · 顺延重试" : ""}`);
         tel("remind_fired", { exercise: machine.exercise.id });
@@ -337,6 +361,7 @@ function main() {
       return;
     }
     handle({ type: "TICK", now }, cfgNow);
+    if (machine.pet === "session") broadcast(); // 会话陪练：每秒刷新倒数/步骤气泡
   }, 1_000);
 
   // ---------- IPC ----------

@@ -28,6 +28,13 @@ const ANIMS = {
     ["happy", 220, 0, 0],
     ["happy", 220, 0, -3], // bounce
   ],
+  // 会话陪练（F25）：猫同步跟做——示范帧循环 + 开心点缀
+  session: [
+    ["stretchA", 700, 0, 0],
+    ["stretchB", 900, 0, 0],
+    ["stretchA", 500, 0, 0],
+    ["happy", 300, 0, -2],
+  ],
   // 撒娇赖留（P1 复用现有帧）：期待地看着你 + 小幅摇摆的粘人节奏
   cling: [
     ["happy", 900, 0, 0],
@@ -116,6 +123,9 @@ microPet.onState((msg) => {
   const s = microPet.strings(locale);
   if (msg.pet === "remind" && msg.exercise) {
     showBubble(`${msg.exercise.emoji} ${msg.exercise.name} · ${s.bubble.letsGo}`, msg.exercise.cue);
+  } else if (msg.pet === "session" && msg.exercise) {
+    // F25 陪练：倒数 + 当前步骤（主进程每秒推送）；再点猫提前结束也算完成
+    showBubble(`⏱ ${msg.sessionRemainSec ?? "?"}s · ${msg.exercise.emoji} ${msg.exercise.name}`, msg.sessionStep ?? "");
   } else if (msg.pet === "cling") {
     // 撒娇赖留：每次 broadcast（含 10 分钟轮换）随机换一句软话——可爱不指责
     const pool = s.bubble.cling ?? [];
@@ -123,8 +133,15 @@ microPet.onState((msg) => {
     const ex = msg.exercise;
     showBubble(ex ? `${line}（${ex.emoji} ${ex.name}）` : line, "");
   } else if (msg.pet === "happy") {
-    showBubble(microPet.fmt(s.bubble.good, { n: msg.streakDays }), s.bubble.petMe);
-    setTimeout(hideBubble, 2500);
+    // F28 举牌：今日 N/M（达标庆祝）；连续天数并到副行
+    const n = msg.todayCount ?? 0;
+    const m = msg.todayGoal;
+    const board = m && m > 0
+      ? (n >= m ? s.bubble.goalMet : microPet.fmt(s.bubble.todayGoalN, { n, m }))
+      : microPet.fmt(s.bubble.todayN, { n });
+    const cue = msg.streakDays > 0 ? `${microPet.fmt(s.bubble.good, { n: msg.streakDays })} · ${s.bubble.petMe}` : s.bubble.petMe;
+    showBubble(board, cue);
+    setTimeout(hideBubble, 3000);
   } else if (msg.pet === "idle") {
     setTimeout(() => { if (petState === "idle") hideBubble(); }, 300);
   }
@@ -167,8 +184,8 @@ window.addEventListener("blur", endDrag); // 失焦兜底：不许拖拽状态�
 canvas.addEventListener("click", () => {
   if (performance.now() < suppressClickUntil) return; // 刚拖完，不是点击
   const now = performance.now();
-  if (petState === "remind" || petState === "cling") {
-    microPet.petClick(); // 打卡走主进程（cling 撒娇时点它 = 和解打卡）
+  if (petState === "remind" || petState === "cling" || petState === "session") {
+    microPet.petClick(); // remind/cling 点 = 开始会话；session 点 = 提前结束（也算完成）
     return;
   }
   // ：idle/happy 点击 → 随机反应池（500ms 节流）
