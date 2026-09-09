@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import { PETS, getPet, type PetId } from "./core/pets";
 import { ANIMS } from "./core/anims";
 import { MOUSE_FRAMES, MOUSE_PALETTE, MOUSE_W, MOUSE_H } from "./core/mouse";
+import { OUTFITS, OUTFIT_PALETTE } from "./core/outfits";
 import { strings, fmt } from "./core/i18n";
 import { react } from "./core/reactions";
 import { shouldStartDrag } from "./core/dragging";
@@ -12,6 +13,8 @@ export interface PetStateMsg {
   spriteId?: string;
   /** 窗口走位中（外出/跑回）——渲染端播 walk 动画 */
   walking?: boolean;
+  /** 当前装扮（hat/scarf/bow，null=素身） */
+  outfit?: string | null;
   exercise: { id: string; name: string; emoji: string; cue: string; steps: string[] } | null;
   streakDays: number;
   locale: string;
@@ -39,6 +42,7 @@ contextBridge.exposeInMainWorld("microPet", {
     ipcRenderer.on("pet-skit", (_e, skit: { type: "mouse" | "hop" }) => cb(skit));
   },
   mouse: () => ({ PALETTE: MOUSE_PALETTE, FRAMES: MOUSE_FRAMES, W: MOUSE_W, H: MOUSE_H }),
+  outfits: () => ({ OUTFITS, PALETTE: OUTFIT_PALETTE }),
   petClick: () => ipcRenderer.send("pet-click"),
   ready: () => ipcRenderer.send("pet-ready"),
   // sprite 静态数据（可序列化，供渲染端画当前宠物）

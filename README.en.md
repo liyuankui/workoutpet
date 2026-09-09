@@ -46,6 +46,7 @@ Read the docs directly: [Install](docs/agent-install-prompt.en.md) · [Setup](do
 - **It wanders off on its own**: after a while at home it strolls off-screen (3–15 min), and runs back to you when a reminder is due; during silent hours it's simply out living its life
 - **Little skits at home**: occasionally it performs — chasing a mouse (chase, pounce, miss, plead) or happy hops; 8s each, 2-3 per hour, never when a reminder is due
 - Weekly report: tray "Copy Weekly Report"; data lives in `~/.micro-pet/streak.json`
+- **Treat shop (cosmetic only)**: check-ins earn fish (1 each, +2 on goal-met days, daily cap 6) — trade for outfits (🎩 hat / 🧣 scarf / 🎀 bow, worn immediately) or the 🪄 cat teaser (recall your wandering pet + trigger hops); local `inventory.json`, no payments, no cloud
 
 ## Configuration (`~/.micro-pet/`)
 

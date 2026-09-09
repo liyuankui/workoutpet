@@ -18,6 +18,7 @@ import { applySkitUniform, createSkit, pickSkit, wantsSkit, type SkitState } fro
 import { parseClingAfterSkips, parseRetryMs } from "./core/behaviorConfig";
 import { currentStepIndex } from "./core/session";
 import { auditConfig } from "./core/configAudit";
+import { buyItem, earnOnCheckIn, emptyInventory, SHOP, toggleOutfit, type Inventory } from "./core/inventory";
 import { applyRoamUniform, createRoam, nextHomeStay, nextOutDuration, shouldRecall, tooCloseToRemind, wantsRoam, type RoamState } from "./core/roam";
 
 // ---------- boot 日志（最先执行：LS 启动无 stdout，靠它诊断"静默僵尸"） ----------
@@ -59,6 +60,24 @@ interface AppConfig {
 const HOME = process.env.MICROPET_HOME ?? join(app.getPath("home"), ".micro-pet");
 const CONFIG_PATH = join(HOME, "config.json");
 const DB_PATH = join(HOME, "streak.json");
+const INVENTORY_PATH = join(HOME, "inventory.json");
+function readInventory(): Inventory {
+  try {
+    if (existsSync(INVENTORY_PATH)) {
+      const raw = JSON.parse(readFileSync(INVENTORY_PATH, "utf8")) as Inventory;
+      if (Array.isArray(raw.owned) && Number.isFinite(raw.fish)) return raw;
+    }
+  } catch { /* 损坏回空账本 */ }
+  return emptyInventory();
+}
+function writeInventory(inv: Inventory): void {
+  try {
+    mkdirSync(HOME, { recursive: true });
+    const tmp = join(HOME, `.tmp-inv-${Date.now()}.json`);
+    writeFileSync(tmp, JSON.stringify(inv, null, 2));
+    renameSync(tmp, INVENTORY_PATH);
+  } catch { /* 账本失败不影响产品 */ }
+}
 
 /** 遥测（opt-out）：关 = 零网络请求；仅 app_open/remind_fired/check_in 三个匿名事件 */
 const APP_VERSION = app.getVersion();
@@ -328,6 +347,7 @@ function main() {
       sessionStep,
       todayCount,
       todayGoal: goalDaily,
+      outfit: readInventory().outfit,
     });
   }
 
@@ -353,6 +373,12 @@ function main() {
       });
       const full = machine.exercise ? result.checkedInSec === machine.exercise.durationSec : false;
       rlog(`打卡 ✓ ${result.checkedIn.id} · 跟做 ${result.checkedInSec}s${full ? "（完整）" : ""}`);
+      // F26 小鱼干：打卡 +1，达标日 +2（每日一次），日上限 6
+      const todayKey = localDateKey(Date.now());
+      const goalMet = !!goalDaily && countToday(readDB(DB_PATH).records, todayKey) >= goalDaily;
+      const earn = earnOnCheckIn(readInventory(), todayKey, goalMet);
+      writeInventory(earn.inv);
+      if (earn.gained > 0) rlog(`得小鱼干 ×${earn.gained}（余额 ${earn.inv.fish}）${goalMet && earn.gained > 1 ? " · 达标奖励" : ""}`);
       tel("check_in", { exercise: result.checkedIn.id, durationSec: result.checkedInSec ?? undefined });
     }
 
@@ -526,6 +552,44 @@ function main() {
               },
             },
           ],
+        },
+        {
+          label: t.shop.replaceAll("{n}", String(readInventory().fish)),
+          submenu: SHOP.map((item) => {
+            const inv = readInventory();
+            const owned = inv.owned.includes(item.id);
+            const label = item.kind === "outfit"
+              ? `${owned ? (inv.outfit === item.id ? "● " : "") : ""}${t.shopNames[item.id as keyof typeof t.shopNames]}${owned ? "" : ` · ${item.price}🐟`}`
+              : `${t.shopNames[item.id as keyof typeof t.shopNames]}${owned ? "" : ` · ${item.price}🐟`}`;
+            return {
+              label,
+              enabled: owned || inv.fish >= item.price,
+              click: () => {
+                let inv2 = readInventory();
+                if (item.kind === "tool") {
+                  if (inv2.owned.includes(item.id)) {
+                    // 逗猫棒：召回在外的猫 + 开一场蹦跳
+                    if (roam.roaming) roamRecall("逗猫棒！"); else win.show();
+                    win.webContents.send("pet-skit", { type: "hop" });
+                    rlog("逗猫棒：召回 + 蹦跳");
+                  } else {
+                    const bought = buyItem(inv2, item.id);
+                    if (bought) { writeInventory(bought); inv2 = bought; rlog(`购买 ${item.id}（余额 ${bought.fish}）`); }
+                  }
+                } else {
+                  if (!inv2.owned.includes(item.id)) {
+                    const bought = buyItem(inv2, item.id);
+                    if (bought) { writeInventory(bought); inv2 = bought; rlog(`购买并穿戴 ${item.id}（余额 ${bought.fish}）`); }
+                  } else {
+                    const toggled = toggleOutfit(inv2, item.id);
+                    if (toggled) { writeInventory(toggled); inv2 = toggled; rlog(`穿戴切换 ${item.id} → ${toggled.outfit ?? "素身"}`); }
+                  }
+                }
+                buildTrayMenu(); // 余额/拥有态即时刷新
+                broadcast();     // 装扮即时上身
+              },
+            };
+          }),
         },
         {
           label: t.validateConfig,

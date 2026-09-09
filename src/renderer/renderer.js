@@ -21,6 +21,8 @@ let lastReactAt = 0;
 
 // 小剧场（F27）：主进程择时开演，自导自演 8s（用户交互 reaction 优先于剧场）
 const MOUSE = microPet.mouse();
+const { OUTFITS, PALETTE: OPAL } = microPet.outfits();
+let outfit = null; // 当前装扮 id
 const SKIT_MS = 8000;
 let skit = null;            // { type, start }
 
@@ -73,6 +75,19 @@ microPet.onSkit((msg) => {
   if (petState === "idle") skit = { type: msg.type, start: performance.now() };
 });
 
+function drawOutfit(ox, oy) {
+  const o = OUTFITS[outfit];
+  if (!o) return;
+  for (let y = 0; y < o.art.length; y++) {
+    for (let x = 0; x < o.art[y].length; x++) {
+      const color = OPAL[o.art[y][x]];
+      if (!color) continue;
+      ctx.fillStyle = color;
+      ctx.fillRect((o.gx + x) * SCALE + ox, (o.gy + y) * SCALE + oy + LIFT_PAD, SCALE, SCALE);
+    }
+  }
+}
+
 function drawFrame(name, ox, oy, sq) {
   // ox/oy 为像素偏移（历史 bug：曾按格数 ×SCALE 放大，跳一下 6px 变 42px 顶出窗口被裁）
   // sq: {sx, sy} 挤压拉伸（squash & stretch）——以猫底部中心为轴，压扁时脚不离地
@@ -93,6 +108,7 @@ function drawFrame(name, ox, oy, sq) {
     }
   }
   if (sq) ctx.restore();
+  drawOutfit(ox, oy); // 装扮随帧偏移（跳跃/浮动一起走）
 }
 
 function loop(now) {
@@ -165,6 +181,7 @@ microPet.onHint((h) => {
 
 microPet.onState((msg) => {
   locale = msg.locale ?? locale;
+  if (msg.outfit !== undefined) outfit = msg.outfit;
   // 走位中（外出/跑回）：播跑动帧，状态切换冻结（bob 不适用）
   const shown = msg.walking ? "walk" : msg.pet;
   if (msg.spriteId && msg.spriteId !== SPRITE_ID) {

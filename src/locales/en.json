@@ -18,7 +18,14 @@
     "pet": "Pet",
     "demoSkitMouse": "Skit: chase the mouse",
     "demoSkitHop": "Skit: hops",
-    "validateConfig": "Validate config"
+    "validateConfig": "Validate config",
+    "shop": "Treat shop (🐟 {n})",
+    "shopNames": {
+      "hat": "🎩 Warm hat",
+      "scarf": "🧣 Red scarf",
+      "bow": "🎀 Ribbon bow",
+      "wand": "🪄 Cat teaser (recall + hop)"
+    }
   },
   "bubble": {
     "letsGo": "let's go",

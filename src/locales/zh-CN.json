@@ -18,7 +18,14 @@
     "pet": "宠物",
     "demoSkitMouse": "小剧场：抓老鼠",
     "demoSkitHop": "小剧场：蹦跳",
-    "validateConfig": "验证配置"
+    "validateConfig": "验证配置",
+    "shop": "小卖部（🐟 {n}）",
+    "shopNames": {
+      "hat": "🎩 暖棕小帽",
+      "scarf": "🧣 红围巾",
+      "bow": "🎀 蝴蝶结",
+      "wand": "🪄 逗猫棒（召回+蹦跳）"
+    }
   },
   "bubble": {
     "letsGo": "一起来",
