@@ -6,7 +6,15 @@
     "copyReport": "Copy Weekly Report",
     "agentSetup": "Copy AI Setup Assistant Prompt",
     "telemetry": "Anonymous telemetry (opt-out)",
-    "quit": "Quit"
+    "quit": "Quit",
+    "demo": "Demo",
+    "demoSession": "Guided session",
+    "demoCling": "Clingy mode",
+    "demoJump": "Jump",
+    "demoWiggle": "Wiggle",
+    "demoMeow": "Meow~",
+    "demoRoll": "Roll over",
+    "demoBoard": "Sign: today's progress"
   },
   "bubble": {
     "letsGo": "let's go",

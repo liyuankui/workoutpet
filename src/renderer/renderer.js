@@ -53,6 +53,7 @@ let reaction = null;        // { type, start, duration }
 let lastReactAt = 0;
 
 function drawFrame(name, ox, oy) {
+  // ox/oy 为像素偏移（历史 bug：曾按格数 ×SCALE 放大，跳一下 6px 变 42px 顶出窗口被裁）
   const frame = FRAMES[name];
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   for (let y = 0; y < GRID; y++) {
@@ -60,7 +61,7 @@ function drawFrame(name, ox, oy) {
       const color = PALETTE[frame[y][x]];
       if (!color) continue;
       ctx.fillStyle = color;
-      ctx.fillRect((x + ox) * SCALE, (y + oy) * SCALE, SCALE, SCALE);
+      ctx.fillRect(x * SCALE + ox, y * SCALE + oy, SCALE, SCALE);
     }
   }
 }
@@ -107,6 +108,17 @@ function showBubble(title, cue) {
 function hideBubble() {
   bubble.classList.remove("show");
 }
+
+// 演示菜单：直发反应（绕过节流——手动触发测试用）
+microPet.onReaction((type) => {
+  const now = performance.now();
+  if (!["wiggle", "jump", "meow", "roll"].includes(type)) return;
+  reaction = { type, start: now, duration: type === "meow" ? 900 : 700 };
+  if (type === "meow") {
+    showBubble(microPet.strings(locale).meow, "");
+    setTimeout(() => { if (petState === "idle" || petState === "happy") hideBubble(); }, 900);
+  }
+});
 
 // 托盘操作后的非模态提示（如复制配置 Prompt 后告诉用户粘给谁）
 microPet.onHint((h) => {

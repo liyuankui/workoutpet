@@ -9,7 +9,7 @@ import { userPaths, readUserExercisesRaw } from "./core/userConfig";
 import { appendCheckIn, countToday, currentStreak, readDB, localDateKey } from "./core/streak";
 import { renderReport } from "./core/report";
 import { FRAMES, frameToRGBA } from "./core/pixelcat";
-import { isLocale, oppositeLocaleLabel, resolveLocale, strings, type Locale } from "./core/i18n";
+import { fmt, isLocale, oppositeLocaleLabel, resolveLocale, strings, type Locale } from "./core/i18n";
 import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedule";
 import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemetry";
 import { computeDragPosition } from "./core/dragging";
@@ -404,6 +404,49 @@ function main() {
             win.show();
             handle({ type: "FORCE", now: Date.now() });
           },
+        },
+        {
+          label: t.demo,
+          submenu: [
+            {
+              label: t.demoSession,
+              click: () => {
+                win.show();
+                handle({ type: "FORCE", now: Date.now() });
+                handle({ type: "PET", now: Date.now() }); // 直接进会话陪练
+              },
+            },
+            {
+              label: t.demoCling,
+              click: () => {
+                win.show();
+                // 演示直入 cling（正常须经连续跳过积累；不写打卡数据）
+                machine = { ...machine, exercise: machine.exercise ?? balancedPick(exercises), pet: "cling", retryPending: false };
+                setSizeAnchored(FULL_W, FULL_H);
+                rlog("演示：撒娇赖留");
+                broadcast();
+              },
+            },
+            { label: t.demoJump, click: () => { win.show(); win.webContents.send("pet-reaction", "jump"); } },
+            { label: t.demoWiggle, click: () => { win.show(); win.webContents.send("pet-reaction", "wiggle"); } },
+            { label: t.demoMeow, click: () => { win.show(); win.webContents.send("pet-reaction", "meow"); } },
+            { label: t.demoRoll, click: () => { win.show(); win.webContents.send("pet-reaction", "roll"); } },
+            {
+              label: t.demoBoard,
+              click: () => {
+                win.show();
+                const b = strings(currentLocale()).bubble;
+                const n = countToday(readDB(DB_PATH).records, localDateKey(Date.now()));
+                const board = goalDaily && goalDaily > 0
+                  ? (n >= goalDaily ? b.goalMet : fmt(b.todayGoalN, { n, m: goalDaily }))
+                  : fmt(b.todayN, { n });
+                const cue = fmt(strings(currentLocale()).bubble.good, { n: currentStreak(readDB(DB_PATH).records, localDateKey(Date.now()), goalDaily) });
+                if (machine.pet === "idle") setSizeAnchored(FULL_W, FULL_H);
+                win.webContents.send("pet-hint", { title: board, cue });
+                setTimeout(() => { if (machine.pet === "idle") setSizeAnchored(CAT_W, CAT_H); }, 4600);
+              },
+            },
+          ],
         },
         {
           label: t.copyReport,

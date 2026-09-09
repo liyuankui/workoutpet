@@ -6,7 +6,15 @@
     "copyReport": "复制周报到剪贴板",
     "agentSetup": "复制 AI 配置助手 Prompt",
     "telemetry": "匿名遥测（可关）",
-    "quit": "退出"
+    "quit": "退出",
+    "demo": "演示",
+    "demoSession": "会话陪练",
+    "demoCling": "撒娇赖留",
+    "demoJump": "跳一下",
+    "demoWiggle": "蹭蹭",
+    "demoMeow": "喵～",
+    "demoRoll": "打滚",
+    "demoBoard": "举牌：今日进度"
   },
   "bubble": {
     "letsGo": "一起来",

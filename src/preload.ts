@@ -24,6 +24,10 @@ contextBridge.exposeInMainWorld("microPet", {
   onHint: (cb: (hint: { title: string; cue: string }) => void) => {
     ipcRenderer.on("pet-hint", (_e, hint: { title: string; cue: string }) => cb(hint));
   },
+  // 演示菜单直发反应（绕过节流，供手动触发测试）
+  onReaction: (cb: (type: string) => void) => {
+    ipcRenderer.on("pet-reaction", (_e, type: string) => cb(type));
+  },
   petClick: () => ipcRenderer.send("pet-click"),
   ready: () => ipcRenderer.send("pet-ready"),
   // sprite 静态数据（可序列化，供渲染端画像素猫）
