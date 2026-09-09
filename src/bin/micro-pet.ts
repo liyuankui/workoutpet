@@ -5,7 +5,7 @@ import { renderReport } from "../core/report";
 import { loadExercises, resolveExercises } from "../core/exercises";
 import exercisesJson from "../core/exercises.json";
 import { initUserExercises, readUserExercisesRaw, userPaths } from "../core/userConfig";
-import { validateSchedule } from "../core/schedule";
+import { auditConfig } from "../core/configAudit";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
@@ -51,24 +51,11 @@ switch (cmd) {
     if (!existsSync(p)) { console.log(`⚠️  ${p} 不存在（首次启动后生成，或用默认值）`); process.exitCode = 1; break; }
     let raw: unknown;
     try { raw = JSON.parse(readFileSync(p, "utf8")); } catch (e) { console.log(`❌ JSON 语法错误: ${e}`); process.exitCode = 1; break; }
-    const cfg = raw as Record<string, unknown>;
-    let ok = true;
-    const goal = Number(cfg.goalDaily);
-    if (cfg.goalDaily !== undefined && (!Number.isFinite(goal) || goal < 1 || goal > 30)) {
-      console.log(`❌ goalDaily: 须为 1-30 的整数（当前 ${JSON.stringify(cfg.goalDaily)}）`); ok = false;
-    }
-    if (cfg.schedule !== undefined) {
-      const s = validateSchedule(cfg.schedule);
-      if (!s.ok) { console.log(`❌ schedule: ${s.error}`); ok = false; }
-      else console.log(`✅ schedule: ${s.schedule!.windows.length} 个时间窗口合法`);
-    }
-    if (Array.isArray(cfg.enabledExercises)) {
-      const known = new Set(loadExercises(exercisesJson).map((e) => e.id));
-      const unknown = (cfg.enabledExercises as string[]).filter((id) => !known.has(id));
-      if (unknown.length) { console.log(`⚠️  enabledExercises 含未知 id: ${unknown.join(", ")}（将被忽略）`); }
-    }
-    if (ok) console.log(`✅ ${p} 校验通过`);
-    process.exitCode = ok ? 0 : 1;
+    const r = auditConfig(raw as Record<string, unknown>, loadExercises(exercisesJson).map((e) => e.id));
+    for (const e of r.errors) console.log(`❌ ${e}`);
+    for (const w of r.warns) console.log(`⚠️  ${w}`);
+    if (r.ok) console.log(`✅ ${p} 校验通过`);
+    process.exitCode = r.ok ? 0 : 1;
     break;
   }
   case "db-path":

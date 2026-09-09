@@ -17,7 +17,8 @@
     "demoBoard": "举牌：今日进度",
     "pet": "宠物",
     "demoSkitMouse": "小剧场：抓老鼠",
-    "demoSkitHop": "小剧场：蹦跳"
+    "demoSkitHop": "小剧场：蹦跳",
+    "validateConfig": "验证配置"
   },
   "bubble": {
     "letsGo": "一起来",
@@ -37,7 +38,8 @@
   "meow": "喵～",
   "hints": {
     "setupCopiedTitle": "📋 已复制 AI 配置助手 Prompt",
-    "setupCopiedCue": "现在粘给你的 AI 助手（ZCode / Claude / WorkBuddy 等），它会采访你并定制提醒计划"
+    "setupCopiedCue": "现在粘给你的 AI 助手（ZCode / Claude / WorkBuddy 等），它会采访你并定制提醒计划",
+    "cfgOk": "配置良好"
   },
   "report": {
     "title": "# 🐱 Micro-pet 周报（{monday} 起）",

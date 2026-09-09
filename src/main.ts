@@ -17,6 +17,7 @@ import { appendPetLog } from "./core/petlog";
 import { applySkitUniform, createSkit, pickSkit, wantsSkit, type SkitState } from "./core/skit";
 import { parseClingAfterSkips, parseRetryMs } from "./core/behaviorConfig";
 import { currentStepIndex } from "./core/session";
+import { auditConfig } from "./core/configAudit";
 import { applyRoamUniform, createRoam, nextHomeStay, nextOutDuration, shouldRecall, tooCloseToRemind, wantsRoam, type RoamState } from "./core/roam";
 
 // ---------- boot 日志（最先执行：LS 启动无 stdout，靠它诊断"静默僵尸"） ----------
@@ -525,6 +526,23 @@ function main() {
               },
             },
           ],
+        },
+        {
+          label: t.validateConfig,
+          click: () => {
+            // F16：免终端校验 config——结果用气泡反馈（brew 用户无源码路径）
+            let cfgRaw: Record<string, unknown> | undefined;
+            try { cfgRaw = JSON.parse(readFileSync(CONFIG_PATH, "utf8")); } catch { cfgRaw = undefined; }
+            const r = auditConfig(cfgRaw, allExercises.map((e) => e.id));
+            const h = strings(currentLocale()).hints;
+            win.show();
+            if (machine.pet === "idle") setSizeAnchored(FULL_W, FULL_H);
+            const title = r.ok ? `✅ ${h.cfgOk}` : `❌ ${r.errors[0] ?? ""}`;
+            const cue = r.ok ? (r.warns.length ? `⚠️ ${r.warns[0]}` : "") : r.warns.length ? `⚠️ ${r.warns[0]}` : "";
+            win.webContents.send("pet-hint", { title, cue });
+            rlog(`配置校验：${r.ok ? "通过" : `${r.errors.length} 错`} / ${r.warns.length} 警告`);
+            setTimeout(() => { if (machine.pet === "idle") setSizeAnchored(CAT_W, CAT_H); }, 4600);
+          },
         },
         {
           label: t.copyReport,

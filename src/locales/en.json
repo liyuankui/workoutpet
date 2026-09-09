@@ -17,7 +17,8 @@
     "demoBoard": "Sign: today's progress",
     "pet": "Pet",
     "demoSkitMouse": "Skit: chase the mouse",
-    "demoSkitHop": "Skit: hops"
+    "demoSkitHop": "Skit: hops",
+    "validateConfig": "Validate config"
   },
   "bubble": {
     "letsGo": "let's go",
@@ -37,7 +38,8 @@
   "meow": "Meow~",
   "hints": {
     "setupCopiedTitle": "📋 AI Setup Assistant Prompt copied",
-    "setupCopiedCue": "Paste it to your AI assistant (ZCode / Claude / WorkBuddy, etc.) — it will interview you and customize your plan"
+    "setupCopiedCue": "Paste it to your AI assistant (ZCode / Claude / WorkBuddy, etc.) — it will interview you and customize your plan",
+    "cfgOk": "Config looks good"
   },
   "report": {
     "title": "# 🐱 Micro-pet Weekly Report (since {monday})",
