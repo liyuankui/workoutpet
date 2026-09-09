@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   appendCheckIn,
+  countToday,
   currentStreak,
   localDateKey,
   readDB,
@@ -113,5 +114,18 @@ describe("localDateKey", () => {
   });
   test("跨时区不漂移（UTC 16:00 = 上海 00:00 次日）", () => {
     expect(localDateKey(Date.UTC(2026, 8, 4, 16, 0), "Asia/Shanghai")).toBe("2026-09-05");
+  });
+});
+
+describe("F28 countToday（举牌数据源）", () => {
+  test("只数当日；空库为 0", () => {
+    const rs = [
+      { date: "2026-09-07", exerciseId: "neck-stretch", ts: 1 },
+      { date: "2026-09-08", exerciseId: "neck-stretch", ts: 2 },
+      { date: "2026-09-08", exerciseId: "belly-breath", ts: 3 },
+    ];
+    expect(countToday(rs, "2026-09-08")).toBe(2);
+    expect(countToday(rs, "2026-09-09")).toBe(0);
+    expect(countToday([], "2026-09-08")).toBe(0);
   });
 });

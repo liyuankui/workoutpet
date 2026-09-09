@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { FRAMES, GRID, PALETTE } from "./core/pixelcat";
+import { ANIMS } from "./core/anims";
 import { strings, fmt } from "./core/i18n";
 import { react } from "./core/reactions";
 import { shouldStartDrag } from "./core/dragging";
@@ -31,7 +32,7 @@ contextBridge.exposeInMainWorld("microPet", {
   petClick: () => ipcRenderer.send("pet-click"),
   ready: () => ipcRenderer.send("pet-ready"),
   // sprite 静态数据（可序列化，供渲染端画像素猫）
-  sprites: () => ({ PALETTE, GRID, FRAMES }),
+  sprites: () => ({ PALETTE, GRID, FRAMES, ANIMS }),
   // 双语文案 + 占位符模板
   strings: (locale: string) => strings(locale),
   fmt: (template: string, vars: Record<string, string | number>) => fmt(template, vars),

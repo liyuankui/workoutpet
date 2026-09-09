@@ -98,8 +98,8 @@ if (!app.requestSingleInstanceLock()) {
   });
 }
 
-// idle 只留猫（约 150×150），remind/happy 扩到 360×300 给气泡——透明区不挡底层点击
-const CAT_W = 150, CAT_H = 150;
+// idle 留猫（约 150×180，高余量给跳跃 18px 弧线与 meow 气泡），remind/happy 扩到 360×300
+const CAT_W = 150, CAT_H = 180;
 const FULL_W = 360, FULL_H = 300;
 
 let tray: Tray | null = null;

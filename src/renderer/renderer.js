@@ -1,6 +1,6 @@
 // 渲染端：像素猫动画 + 气泡 + 点击互动反应（状态权威在 main 进程，sprite/文案经 preload 注入）
 /* global microPet */
-const { PALETTE, GRID, FRAMES } = microPet.sprites();
+const { PALETTE, GRID, FRAMES, ANIMS } = microPet.sprites();
 
 const canvas = document.getElementById("cat");
 const ctx = canvas.getContext("2d");
@@ -9,40 +9,7 @@ const titleEl = bubble.querySelector(".title");
 const cueEl = bubble.querySelector(".cue");
 
 const SCALE = 7; // 16 × 7 = 112px
-
-// 每状态的帧序列：[帧名, 时长ms, x偏移, y偏移]
-const ANIMS = {
-  idle: [
-    ["idleA", 1100, 0, 0],
-    ["idleWag", 350, 0, 0],
-    ["idleA", 1100, 0, 0],
-    ["blink", 140, 0, 0],
-  ],
-  remind: [
-    ["stretchA", 500, 0, 0],
-    ["stretchB", 850, 0, 0],
-    ["stretchA", 400, 0, 0],
-    ["stretchB", 850, 0, 0],
-  ],
-  happy: [
-    ["happy", 220, 0, 0],
-    ["happy", 220, 0, -3], // bounce
-  ],
-  // 会话陪练（F25）：猫同步跟做——示范帧循环 + 开心点缀
-  session: [
-    ["stretchA", 700, 0, 0],
-    ["stretchB", 900, 0, 0],
-    ["stretchA", 500, 0, 0],
-    ["happy", 300, 0, -2],
-  ],
-  // 撒娇赖留（P1 复用现有帧）：期待地看着你 + 小幅摇摆的粘人节奏
-  cling: [
-    ["happy", 900, 0, 0],
-    ["idleWag", 350, 0, 0],
-    ["happy", 500, 0, -2],
-    ["idleA", 600, 0, 0],
-  ],
-};
+const LIFT_PAD = 26; // canvas 顶部跳跃/浮动预留：跳 18px + 腾空拉伸(sy1.08 再吃 ~8px)，无此垫即被 canvas 裁
 
 let petState = "idle";
 let locale = "zh-CN";
@@ -52,18 +19,26 @@ let animStart = performance.now();
 let reaction = null;        // { type, start, duration }
 let lastReactAt = 0;
 
-function drawFrame(name, ox, oy) {
+function drawFrame(name, ox, oy, sq) {
   // ox/oy 为像素偏移（历史 bug：曾按格数 ×SCALE 放大，跳一下 6px 变 42px 顶出窗口被裁）
+  // sq: {sx, sy} 挤压拉伸（squash & stretch）——以猫底部中心为轴，压扁时脚不离地
   const frame = FRAMES[name];
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (sq) {
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height);
+    ctx.scale(sq.sx, sq.sy);
+    ctx.translate(-canvas.width / 2, -canvas.height);
+  }
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
       const color = PALETTE[frame[y][x]];
       if (!color) continue;
       ctx.fillStyle = color;
-      ctx.fillRect(x * SCALE + ox, y * SCALE + oy, SCALE, SCALE);
+      ctx.fillRect(x * SCALE + ox, y * SCALE + oy + LIFT_PAD, SCALE, SCALE);
     }
   }
+  if (sq) ctx.restore();
 }
 
 function loop(now) {
@@ -74,7 +49,13 @@ function loop(now) {
     } else if (reaction.type === "wiggle") {
       drawFrame("idleA", Math.floor(now / 90) % 2 === 0 ? 0 : 1, 0);
     } else if (reaction.type === "jump") {
-      drawFrame("idleA", 0, -Math.round(6 * Math.sin(Math.PI * p))); // 跳一下弧线
+      // 可爱第一性：跳要高、要有弹性——蓄力压扁 → 腾空拉长 → 落地回弹
+      const lift = Math.round(18 * Math.sin(Math.PI * p));
+      let sq = null;
+      if (p < 0.18) sq = { sx: 1.12, sy: 0.86 };        // 蓄力：压扁
+      else if (p > 0.85) sq = { sx: 1.1, sy: 0.9 };     // 落地：回弹压扁
+      else sq = { sx: 0.94, sy: 1.08 };                  // 腾空：拉长
+      drawFrame("idleA", 0, -lift, sq);
     } else if (reaction.type === "meow") {
       drawFrame("idleA", 0, 0); // 气泡在 click 时已弹出
     } else if (reaction.type === "roll") {
@@ -88,9 +69,11 @@ function loop(now) {
   const anim = ANIMS[petState] ?? ANIMS.idle;
   const total = anim.reduce((s, f) => s + f[1], 0);
   let t = (now - animStart) % total;
+  // 呼吸浮动：静止≠死物（仅闲坐/撒娇，动作状态不乱浮）
+  const bob = petState === "idle" || petState === "cling" ? Math.round(Math.sin(now / 650) * 1.5) : 0;
   for (const [name, dur, ox, oy] of anim) {
     if (t < dur) {
-      drawFrame(name, ox, oy);
+      drawFrame(name, ox, oy + bob);
       break;
     }
     t -= dur;
