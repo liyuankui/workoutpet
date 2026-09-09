@@ -43,6 +43,7 @@ brew install --cask liyuankui/tap/micro-pet
 - **平时点猫 = 随机互动**：蹭蹭 / 跳一下 / 喵～ / 打滚（500ms 节流）
 - 中英双语：跟随系统语言，托盘可切换
 - **两只宠物**（32×32 高精像素）：奶油橘猫 / 云白兔——托盘「宠物」随时换，streak 数据不变
+- **自己会出去玩**：在家待一阵就出屏溜达（3-15 分钟），该提醒时跑回来找你；静默时段（schedule 窗外）它就在外面过自己的日子
 - 周报：托盘「复制周报」或 `bunx --bun micro-pet report`（需源码环境），数据在 `~/.micro-pet/streak.json`
 
 ## 配置（`~/.micro-pet/`）

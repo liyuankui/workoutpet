@@ -66,7 +66,7 @@ function loop(now) {
   const total = anim.reduce((s, f) => s + f[1], 0);
   let t = (now - animStart) % total;
   // 呼吸浮动：静止≠死物（仅闲坐/撒娇，动作状态不乱浮）
-  const bob = petState === "idle" || petState === "cling" ? Math.round(Math.sin(now / 650) * 1.5) : 0;
+  const bob = petState === "idle" || petState === "cling" ? Math.round(Math.sin(now / 650) * 1.5) : 0; // walk 时也静止即可
   for (const [name, dur, ox, oy] of anim) {
     if (t < dur) {
       drawFrame(name, ox, oy + bob);
@@ -107,16 +107,20 @@ microPet.onHint((h) => {
 
 microPet.onState((msg) => {
   locale = msg.locale ?? locale;
+  // 走位中（外出/跑回）：播跑动帧，状态切换冻结（bob 不适用）
+  const shown = msg.walking ? "walk" : msg.pet;
   if (msg.spriteId && msg.spriteId !== SPRITE_ID) {
     // 换宠物：重取 sprite 集（网格/色板/帧全换，动画状态照常）
     ({ PALETTE, GRID, FRAMES, SPRITE_ID } = microPet.sprites(msg.spriteId));
   }
-  if (msg.pet !== petState) {
-    petState = msg.pet;
+  if (shown !== petState) {
+    petState = shown;
     animStart = performance.now();
   }
   const s = microPet.strings(locale);
-  if (msg.pet === "remind" && msg.exercise) {
+  if (msg.walking) {
+    hideBubble(); // 走位中不弹话
+  } else if (msg.pet === "remind" && msg.exercise) {
     showBubble(`${msg.exercise.emoji} ${msg.exercise.name} · ${s.bubble.letsGo}`, msg.exercise.cue);
   } else if (msg.pet === "session" && msg.exercise) {
     // F25 陪练：倒数 + 当前步骤（主进程每秒推送）；再点猫提前结束也算完成

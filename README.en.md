@@ -43,6 +43,7 @@ Read the docs directly: [Install](docs/agent-install-prompt.en.md) · [Setup](do
 - **Click any other time = random reaction**: wiggle / jump / meow~ / roll (500ms throttle)
 - Bilingual (zh-CN / en): follows your system language, switchable from the tray
 - **Two pets** (32×32 hi-res pixel art): Cream Cat / Cloud Bunny — switch anytime from the tray; streak data carries over
+- **It wanders off on its own**: after a while at home it strolls off-screen (3–15 min), and runs back to you when a reminder is due; during silent hours it's simply out living its life
 - Weekly report: tray "Copy Weekly Report"; data lives in `~/.micro-pet/streak.json`
 
 ## Configuration (`~/.micro-pet/`)

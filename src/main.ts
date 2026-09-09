@@ -14,6 +14,7 @@ import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedul
 import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemetry";
 import { computeDragPosition } from "./core/dragging";
 import { appendPetLog } from "./core/petlog";
+import { applyRoamUniform, createRoam, nextHomeStay, nextOutDuration, shouldRecall, tooCloseToRemind, wantsRoam, type RoamState } from "./core/roam";
 
 // ---------- boot 日志（最先执行：LS 启动无 stdout，靠它诊断"静默僵尸"） ----------
 const BOOT_LOG = join(process.env.MICROPET_HOME ?? join(homedir(), ".micro-pet"), "boot.log");
@@ -250,6 +251,47 @@ function main() {
     win.setSize(w, h);
   }
 
+  // ---------- F22 窗口走位（缓动位移，≤20fps；走位期间广播 walking 让渲染端播跑动帧） ----------
+  let walking = false;
+  let walkTimer: ReturnType<typeof setTimeout> | undefined;
+  function walkTo(targetX: number, targetY: number, ms: number, onDone?: () => void): void {
+    clearTimeout(walkTimer);
+    const [sx, sy] = win.getPosition();
+    const t0 = Date.now();
+    if (!walking) { walking = true; broadcast(); }
+    const step = () => {
+      const p = Math.min(1, (Date.now() - t0) / ms);
+      const e = 1 - (1 - p) * (1 - p); // easeOut：起步快、到家缓
+      win.setPosition(Math.round(sx + (targetX - sx) * e), Math.round(sy + (targetY - sy) * e), false);
+      if (p < 1) walkTimer = setTimeout(step, 50);
+      else { walking = false; broadcast(); onDone?.(); }
+    };
+    step();
+  }
+
+  // ---------- F21 自主漫游 ----------
+  // 猫在外面也知道时间：漫游不进出提醒计时的顺延（顺延只属于「托盘手动隐藏」）
+  if (process.env.MICROPET_ROAM_UNIFORM_MS) applyRoamUniform(Number(process.env.MICROPET_ROAM_UNIFORM_MS));
+  let roam: RoamState = createRoam(Date.now());
+
+  function roamOut(why: string): void {
+    if (roam.roaming || walking || machine.pet !== "idle") return;
+    const [x, y] = win.getPosition();
+    roam = { ...roam, roaming: true, homeX: x, homeY: y, backAt: Date.now() + nextOutDuration() };
+    const wa2 = screen.getPrimaryDisplay().workArea;
+    const offX = Math.random() < 0.5 ? wa2.x - CAT_W - 12 : wa2.x + wa2.width + 12;
+    rlog(`出去玩（${why}，${Math.round((roam.backAt - Date.now()) / 60000)} 分钟内回）`);
+    walkTo(offX, y, 1200, () => win.hide());
+  }
+
+  function roamRecall(why: string): void {
+    if (!roam.roaming) return;
+    win.show();
+    roam = { ...roam, roaming: false, nextRoamAt: Date.now() + nextHomeStay() };
+    rlog(`回家（${why}）`);
+    walkTo(roam.homeX, roam.homeY, 1200);
+  }
+
   function broadcast() {
     const locale = currentLocale();
     const view = machine.exercise ? localizeExercise(machine.exercise, locale) : null;
@@ -270,6 +312,7 @@ function main() {
     }
     win.webContents.send("pet-state", {
       pet: machine.pet,
+      walking,
       spriteId: getPet(readConfig().pet).id,
       exercise: view,
       streakDays:
@@ -341,14 +384,29 @@ function main() {
     if (schedule) {
       const iv = intervalMinutes(schedule, new Date(now));
       if (iv === null) {
-        if (machine.pet === "idle") machine = { ...machine, lastCycleAt: now }; // 静默期顺延，出窗即恢复
-        quietLog(now, "schedule 窗外");
+        if (machine.pet === "idle") {
+          machine = { ...machine, lastCycleAt: now }; // 静默期顺延，出窗即恢复
+          if (!roam.roaming && !walking) roamOut("下班了，在外面过自己的日子"); // 静默期默认在外
+        }
+        quietLog(now, "schedule 窗外（猫在外面玩）");
         return;
       }
+      if (roam.roaming && machine.pet === "idle" && !walking) roamRecall("开工了，回岗位");
       cfgNow = { ...machineCfg, intervalMs: iv * 60_000 };
     }
     // F24 顺延：retryPending 时下一次提醒改用 retryMs（8 分钟级），打卡后自动回常规轮转
     cfgNow = { ...cfgNow, intervalMs: effectiveIntervalMs(machine, cfgNow.intervalMs, retryMs) };
+
+    // F21 漫游驱动：仅 idle 在家时；提醒临近不出门；到期前 30s 或归期召回
+    const remindDueAt = machine.pet === "idle" ? machine.lastCycleAt + cfgNow.intervalMs : null;
+    if (machine.pet === "idle" && !walking) {
+      if (roam.roaming && shouldRecall(roam, now, remindDueAt)) {
+        roamRecall(remindDueAt !== null && remindDueAt - now <= 60_000 ? "提醒要来了，跑回去找你" : "玩够了");
+      } else if (!roam.roaming && wantsRoam(roam, now)) {
+        if (tooCloseToRemind(roam, now, remindDueAt)) roam = { ...roam, nextRoamAt: (remindDueAt ?? now) + 60_000 };
+        else roamOut("在家待不住了");
+      }
+    }
     // F23 撒娇赖留：cling 常驻，每 10 分钟换一句软话（broadcast 重发 → 渲染端随机选）
     if (machine.pet === "cling") {
       if (now - (clingLastResayAt ?? 0) >= 10 * 60_000) {
@@ -357,8 +415,9 @@ function main() {
       }
       return;
     }
-    // 猫被隐藏期间不打扰：顺延计时，重新显示后不补弹
-    if (machine.pet === "idle" && !win.isVisible()) {
+    // 猫被托盘隐藏期间不打扰：顺延计时，重新显示后不补弹
+    // （漫游在外的 hide 不算——猫在外面也惦记着时间，F21 语义）
+    if (machine.pet === "idle" && !win.isVisible() && !roam.roaming) {
       machine = { ...machine, lastCycleAt: now };
       quietLog(now, "猫被托盘隐藏");
       return;
@@ -404,7 +463,7 @@ function main() {
     tray!.setToolTip(t.tooltip);
     tray!.setContextMenu(
       Menu.buildFromTemplate([
-        { label: t.showHide, click: () => (win.isVisible() ? win.hide() : win.show()) },
+        { label: t.showHide, click: () => { if (win.isVisible()) win.hide(); else { if (roam.roaming) roamRecall("你叫它回来"); else win.show(); } } },
         {
           label: t.remindNow,
           click: () => {

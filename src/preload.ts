@@ -9,6 +9,8 @@ export interface PetStateMsg {
   pet: "idle" | "remind" | "happy" | "cling" | "session";
   /** 当前宠物 id（cat/bunny…）：变化时渲染端重取 sprite */
   spriteId?: string;
+  /** 窗口走位中（外出/跑回）——渲染端播 walk 动画 */
+  walking?: boolean;
   exercise: { id: string; name: string; emoji: string; cue: string; steps: string[] } | null;
   streakDays: number;
   locale: string;
