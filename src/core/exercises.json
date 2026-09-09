@@ -100,19 +100,21 @@
     },
     "emoji": "🧘",
     "cue": {
-      "zh-CN": "头侧倾各 15 秒",
-      "en": "Tilt head sideways 15s each"
+      "zh-CN": "头侧倾各 15 秒（轻扶不按压）",
+      "en": "Tilt 15s each side (support, don't push)"
     },
     "steps": {
       "zh-CN": [
         "右手轻扶头右侧",
         "头缓慢向左倾，保持 15 秒",
-        "换边重复"
+        "换边重复",
+        "手只是轻轻搭着，不要用力下压"
       ],
       "en": [
         "Right hand on head",
         "Tilt slowly left, hold 15s",
-        "Switch sides"
+        "Switch sides",
+        "Hand rests gently — never push or pull"
       ]
     },
     "durationSec": 30,
@@ -138,12 +140,14 @@
       "zh-CN": [
         "坐直，双手扶椅面",
         "双腿并拢伸直抬离地面",
-        "保持 10 秒，重复 3 次"
+        "保持 10 秒，重复 3 次",
+        "桌下空间不足可改单腿轮流"
       ],
       "en": [
         "Sit tall, hold chair",
         "Legs straight, lift off floor",
-        "Hold 10s, ×3"
+        "Hold 10s, ×3",
+        "Tight under desk? Do one leg at a time"
       ]
     },
     "durationSec": 40,
@@ -193,8 +197,8 @@
     },
     "emoji": "🌬️",
     "cue": {
-      "zh-CN": "吸 4 呼 6，收腹 × 5",
-      "en": "Inhale 4, exhale 6 ×5"
+      "zh-CN": "吸 4 呼 6（节奏可自然微调），收腹 × 5",
+      "en": "In 4, out 6 (pace flexible) × 5"
     },
     "steps": {
       "zh-CN": [

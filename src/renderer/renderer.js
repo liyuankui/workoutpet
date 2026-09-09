@@ -19,6 +19,60 @@ let animStart = performance.now();
 let reaction = null;        // { type, start, duration }
 let lastReactAt = 0;
 
+// 小剧场（F27）：主进程择时开演，自导自演 8s（用户交互 reaction 优先于剧场）
+const MOUSE = microPet.mouse();
+const SKIT_MS = 8000;
+let skit = null;            // { type, start }
+
+function drawMouse(frame, px, py) {
+  const pal = MOUSE.PALETTE;
+  for (let y = 0; y < MOUSE.H; y++) {
+    for (let x = 0; x < MOUSE.W; x++) {
+      const color = pal[frame[y][x]];
+      if (!color) continue;
+      ctx.fillStyle = color;
+      ctx.fillRect(px + x * SCALE, py + y * SCALE, SCALE, SCALE);
+    }
+  }
+}
+
+// 剧场绘制：返回 true 表示正在演（loop 里优先于常规动画、次于 reaction）
+function playSkit(now) {
+  if (!skit) return false;
+  const t = (now - skit.start) / 1000;
+  if (t * 1000 >= SKIT_MS) { skit = null; return false; }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (skit.type === "mouse") {
+    // 老鼠横穿（后段加速逃命），猫追半程、扑一下、扑空
+    const speed = t < 5 ? 22 : 40; // px/s
+    const mx = -48 + speed * t * (t < 5 ? 1 : 1 + (t - 5) * 0.4);
+    const mouseFrame = MOUSE.FRAMES[Math.floor(now / 140) % 2 ? "mouseA" : "mouseB"];
+    drawMouse(mouseFrame, mx, 128);
+    let oy = 0;
+    let catFrame = Math.floor(now / 140) % 2 ? "idleA" : "idleWag"; // 小跑
+    if (t >= 5 && t < 6.2) { // 扑！
+      oy = -Math.round(14 * Math.sin(Math.PI * (t - 5) / 1.2));
+      catFrame = "happy";
+    } else if (t >= 6.2) catFrame = "plead"; // 扑空失落，求安慰
+    const catOx = Math.max(-40, Math.min(24, mx - 84)); // 追在老鼠后头
+    drawFrame(catFrame, catOx, oy);
+  } else {
+    // hop：原地连蹦（三组两连跳，间以期待眼神）
+    const phase = t % 2.6;
+    let oy = 0;
+    let frame = "idleA";
+    if (phase < 0.5) { oy = -Math.round(16 * Math.sin(Math.PI * phase / 0.5)); frame = "happy"; }
+    else if (phase < 1.0) { oy = -Math.round(12 * Math.sin(Math.PI * (phase - 0.5) / 0.5)); frame = "happy"; }
+    else if (phase < 1.6) frame = "plead";
+    drawFrame(frame, 0, oy);
+  }
+  return true;
+}
+
+microPet.onSkit((msg) => {
+  if (petState === "idle") skit = { type: msg.type, start: performance.now() };
+});
+
 function drawFrame(name, ox, oy, sq) {
   // ox/oy 为像素偏移（历史 bug：曾按格数 ×SCALE 放大，跳一下 6px 变 42px 顶出窗口被裁）
   // sq: {sx, sy} 挤压拉伸（squash & stretch）——以猫底部中心为轴，压扁时脚不离地
@@ -42,6 +96,10 @@ function drawFrame(name, ox, oy, sq) {
 }
 
 function loop(now) {
+  if (!reaction && playSkit(now)) { // 小剧场（用户点了猫则让位于 reaction）
+    requestAnimationFrame(loop);
+    return;
+  }
   if (reaction) {
     const p = (now - reaction.start) / reaction.duration; // 0→1
     if (p >= 1) {
@@ -135,8 +193,9 @@ microPet.onState((msg) => {
     // F28 举牌：今日 N/M（达标庆祝）；连续天数并到副行
     const n = msg.todayCount ?? 0;
     const m = msg.todayGoal;
-    const board = m && m > 0
-      ? (n >= m ? s.bubble.goalMet : microPet.fmt(s.bubble.todayGoalN, { n, m }))
+    const kind = m && m > 0 ? (n >= m ? "met" : "goalN") : "plainN";
+    const board = kind === "met" ? s.bubble.goalMet
+      : kind === "goalN" ? microPet.fmt(s.bubble.todayGoalN, { n, m })
       : microPet.fmt(s.bubble.todayN, { n });
     const cue = msg.streakDays > 0 ? `${microPet.fmt(s.bubble.good, { n: msg.streakDays })} · ${s.bubble.petMe}` : s.bubble.petMe;
     showBubble(board, cue);

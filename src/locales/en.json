@@ -15,7 +15,9 @@
     "demoMeow": "Meow~",
     "demoRoll": "Roll over",
     "demoBoard": "Sign: today's progress",
-    "pet": "Pet"
+    "pet": "Pet",
+    "demoSkitMouse": "Skit: chase the mouse",
+    "demoSkitHop": "Skit: hops"
   },
   "bubble": {
     "letsGo": "let's go",

@@ -14,6 +14,9 @@ import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedul
 import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemetry";
 import { computeDragPosition } from "./core/dragging";
 import { appendPetLog } from "./core/petlog";
+import { applySkitUniform, createSkit, pickSkit, wantsSkit, type SkitState } from "./core/skit";
+import { parseClingAfterSkips, parseRetryMs } from "./core/behaviorConfig";
+import { currentStepIndex } from "./core/session";
 import { applyRoamUniform, createRoam, nextHomeStay, nextOutDuration, shouldRecall, tooCloseToRemind, wantsRoam, type RoamState } from "./core/roam";
 
 // ---------- boot 日志（最先执行：LS 启动无 stdout，靠它诊断"静默僵尸"） ----------
@@ -151,14 +154,13 @@ function main() {
   // dev 覆盖：MICROPET_INTERVAL_SEC / MICROPET_REMIND_TIMEOUT_SEC（测试/演示用）
   const envInterval = Number(process.env.MICROPET_INTERVAL_SEC ?? 0) * 1000;
   // dev 覆盖：MICROPET_RETRY_SEC（验证顺延链用；生产取 config retryMin，默认 8 分钟）
-  const retryMs = Number(process.env.MICROPET_RETRY_SEC ?? 0) * 1000 || Math.max(1, Number(cfg.retryMin) || 8) * 60_000;
+  const retryMs = Number(process.env.MICROPET_RETRY_SEC ?? 0) * 1000 || parseRetryMs(cfg);
   const machineCfg: MachineConfig = {
     ...DEFAULT_CONFIG,
     intervalMs: envInterval > 0 ? envInterval : safeIntervalMin(cfg.intervalMin) * 60_000,
     remindTimeoutMs: Number(process.env.MICROPET_REMIND_TIMEOUT_SEC ?? 0) * 1000 || DEFAULT_CONFIG.remindTimeoutMs,
     retryOnTimeout: true, // F24 顺延哲学：运动没完成是顺延不是跳过
-    // 缺省 3 次进入撒娇；显式 0 = 关闭（Math.max 钳负数）
-    clingAfterSkips: cfg.clingAfterSkips === undefined ? 3 : Math.max(0, Number(cfg.clingAfterSkips) || 0),
+    clingAfterSkips: parseClingAfterSkips(cfg),
   };
 
   // ---------- 窗口（：透明置顶、不抢焦点） ----------
@@ -273,6 +275,8 @@ function main() {
   // 猫在外面也知道时间：漫游不进出提醒计时的顺延（顺延只属于「托盘手动隐藏」）
   if (process.env.MICROPET_ROAM_UNIFORM_MS) applyRoamUniform(Number(process.env.MICROPET_ROAM_UNIFORM_MS));
   let roam: RoamState = createRoam(Date.now());
+  if (process.env.MICROPET_SKIT_UNIFORM_MS) applySkitUniform(Number(process.env.MICROPET_SKIT_UNIFORM_MS));
+  let skit: SkitState = createSkit(Date.now());
 
   function roamOut(why: string): void {
     if (roam.roaming || walking || machine.pet !== "idle") return;
@@ -302,8 +306,7 @@ function main() {
       const dur = machine.exercise.durationSec;
       const elapsed = (Date.now() - machine.sessionStartedAt) / 1000;
       sessionRemainSec = Math.max(0, Math.ceil(dur - elapsed));
-      const stepDur = dur / Math.max(1, view.steps.length);
-      sessionStep = view.steps[Math.min(view.steps.length - 1, Math.floor(elapsed / Math.max(stepDur, 1)))] ?? "";
+      sessionStep = view.steps[currentStepIndex(view.steps.length, dur, elapsed)] ?? "";
     }
     // 举牌（F28）：happy（刚打卡）与 cling（撒娇时亮进度）需要今日计数
     let todayCount: number | undefined;
@@ -406,6 +409,13 @@ function main() {
         if (tooCloseToRemind(roam, now, remindDueAt)) roam = { ...roam, nextRoamAt: (remindDueAt ?? now) + 60_000 };
         else roamOut("在家待不住了");
       }
+      // F27 小剧场：在家静坐且离提醒够远时随机开演（每小时 2-3 场，正戏优先）
+      if (wantsSkit(skit, now, { petIdle: true, visible: win.isVisible(), walking, roaming: roam.roaming, remindDueAt })) {
+        const type = pickSkit();
+        skit = createSkit(now); // 下一场重新计时
+        rlog(`小剧场开演 · ${type === "mouse" ? "抓老鼠" : "蹦跳"}`);
+        win.webContents.send("pet-skit", { type });
+      }
     }
     // F23 撒娇赖留：cling 常驻，每 10 分钟换一句软话（broadcast 重发 → 渲染端随机选）
     if (machine.pet === "cling") {
@@ -493,6 +503,8 @@ function main() {
                 broadcast();
               },
             },
+            { label: t.demoSkitMouse, click: () => { win.show(); win.webContents.send("pet-skit", { type: "mouse" }); } },
+            { label: t.demoSkitHop, click: () => { win.show(); win.webContents.send("pet-skit", { type: "hop" }); } },
             { label: t.demoJump, click: () => { win.show(); win.webContents.send("pet-reaction", "jump"); } },
             { label: t.demoWiggle, click: () => { win.show(); win.webContents.send("pet-reaction", "wiggle"); } },
             { label: t.demoMeow, click: () => { win.show(); win.webContents.send("pet-reaction", "meow"); } },

@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { PETS, getPet, type PetId } from "./core/pets";
 import { ANIMS } from "./core/anims";
+import { MOUSE_FRAMES, MOUSE_PALETTE, MOUSE_W, MOUSE_H } from "./core/mouse";
 import { strings, fmt } from "./core/i18n";
 import { react } from "./core/reactions";
 import { shouldStartDrag } from "./core/dragging";
@@ -33,6 +34,11 @@ contextBridge.exposeInMainWorld("microPet", {
   onReaction: (cb: (type: string) => void) => {
     ipcRenderer.on("pet-reaction", (_e, type: string) => cb(type));
   },
+  // 小剧场（F27）：主进程择时开演，渲染端自导自演 8s
+  onSkit: (cb: (skit: { type: "mouse" | "hop" }) => void) => {
+    ipcRenderer.on("pet-skit", (_e, skit: { type: "mouse" | "hop" }) => cb(skit));
+  },
+  mouse: () => ({ PALETTE: MOUSE_PALETTE, FRAMES: MOUSE_FRAMES, W: MOUSE_W, H: MOUSE_H }),
   petClick: () => ipcRenderer.send("pet-click"),
   ready: () => ipcRenderer.send("pet-ready"),
   // sprite 静态数据（可序列化，供渲染端画当前宠物）

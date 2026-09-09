@@ -53,4 +53,13 @@ describe("F25 跟做完整率", () => {
     const out = renderReport(db, loadExercises(raw), new Date("2026-09-08T12:00:00").getTime(), "Asia/Shanghai", "zh-CN");
     expect(out).not.toContain("完整率");
   });
+
+  test("动作已从库中删除但有历史打卡 → 排除出完整率，不崩", () => {
+    const db = { version: 1 as const, records: [
+      { date: "2026-09-08", exerciseId: "ghost-exercise", ts: 1, durationSec: 30 },
+    ] };
+    const out = renderReport(db, loadExercises(raw), new Date("2026-09-08T12:00:00").getTime(), "Asia/Shanghai", "zh-CN");
+    expect(out).not.toContain("完整率"); // 未知动作不计入
+    expect(out).toContain("ghost-exercise"); // 分布里仍按 id 展示
+  });
 });

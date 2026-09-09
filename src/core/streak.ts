@@ -102,3 +102,10 @@ export function weekReport(records: CheckIn[], todayKey: string) {
   for (const r of inWeek) perExercise.set(r.exerciseId, (perExercise.get(r.exerciseId) ?? 0) + 1);
   return { weekCount: inWeek.length, perExercise, monday: fmtKey(monday) };
 }
+
+/** 举牌种类（F28）：达标 / 有目标进度 / 纯计数——文案组装在各端，决策在此 */
+export type SignKind = "met" | "goalN" | "plainN";
+export function signboardKind(todayCount: number, goalDaily: number | undefined): SignKind {
+  if (goalDaily && goalDaily > 0) return todayCount >= goalDaily ? "met" : "goalN";
+  return "plainN";
+}

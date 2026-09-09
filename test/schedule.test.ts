@@ -66,4 +66,10 @@ describe("v0.4.0 均衡抽取", () => {
     expect(ex.filter((e) => e.category === "lower").length).toBe(3);
     expect(ex.filter((e) => e.category === "core").length).toBe(1);
   });
+
+  test("跨午夜窗口（22:00→06:00）被拒且错误可读（当前仅支持同日）", () => {
+    const r = validateSchedule({ windows: [{ from: "22:00", to: "06:00", intervalMin: 60 }] });
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("from");
+  });
 });
