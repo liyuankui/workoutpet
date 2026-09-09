@@ -42,6 +42,7 @@ Read the docs directly: [Install](docs/agent-install-prompt.en.md) · [Setup](do
 - **Clingy mode**: after 3 consecutive skips the cat stays and cycles soft lines waiting for you — click it to reconcile with a check-in
 - **Click any other time = random reaction**: wiggle / jump / meow~ / roll (500ms throttle)
 - Bilingual (zh-CN / en): follows your system language, switchable from the tray
+- **Two pets** (32×32 hi-res pixel art): Cream Cat / Cloud Bunny — switch anytime from the tray; streak data carries over
 - Weekly report: tray "Copy Weekly Report"; data lives in `~/.micro-pet/streak.json`
 
 ## Configuration (`~/.micro-pet/`)
@@ -54,6 +55,7 @@ Read the docs directly: [Install](docs/agent-install-prompt.en.md) · [Setup](do
 | | `enabledExercises` | Exercise id whitelist (default all); the cat auto-rotates lower/upper/hands/core categories for balance |
 | | `locale` | `"zh-CN"` / `"en"`; defaults to system language (tray switch writes here) |
 | | `brx` / `bry` | Cat's bottom-right corner; saved on drag, restored on restart |
+| | `pet` | Pet: `cat` (Cream Cat) / `bunny` (Cloud Bunny); tray switch writes here |
 | | `retryMin` | Retry interval in minutes after a skip (default 8; defer, don't drop) |
 | | `clingAfterSkips` | Consecutive skips before clingy mode (default 3, 0 = off) |
 | `exercises.json` | — | **Custom exercise library** (overrides the built-in when present), see below |

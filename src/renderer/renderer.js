@@ -1,6 +1,7 @@
 // 渲染端：像素猫动画 + 气泡 + 点击互动反应（状态权威在 main 进程，sprite/文案经 preload 注入）
 /* global microPet */
-const { PALETTE, GRID, FRAMES, ANIMS } = microPet.sprites();
+let { PALETTE, GRID, FRAMES, ANIMS, SPRITE_ID } = microPet.sprites();
+const SCALE = 4; // 32 × 4 = 128px（32×32 高精网格）
 
 const canvas = document.getElementById("cat");
 const ctx = canvas.getContext("2d");
@@ -8,8 +9,7 @@ const bubble = document.getElementById("bubble");
 const titleEl = bubble.querySelector(".title");
 const cueEl = bubble.querySelector(".cue");
 
-const SCALE = 7; // 16 × 7 = 112px
-const LIFT_PAD = 26; // canvas 顶部跳跃/浮动预留：跳 18px + 腾空拉伸(sy1.08 再吃 ~8px)，无此垫即被 canvas 裁
+const LIFT_PAD = 26; // canvas 顶部跳跃/浮动预留（跳 18px + 余量），无此垫即被 canvas 裁
 
 let petState = "idle";
 let locale = "zh-CN";
@@ -49,13 +49,9 @@ function loop(now) {
     } else if (reaction.type === "wiggle") {
       drawFrame("idleA", Math.floor(now / 90) % 2 === 0 ? 0 : 1, 0);
     } else if (reaction.type === "jump") {
-      // 可爱第一性：跳要高、要有弹性——蓄力压扁 → 腾空拉长 → 落地回弹
-      const lift = Math.round(18 * Math.sin(Math.PI * p));
-      let sq = null;
-      if (p < 0.18) sq = { sx: 1.12, sy: 0.86 };        // 蓄力：压扁
-      else if (p > 0.85) sq = { sx: 1.1, sy: 0.9 };     // 落地：回弹压扁
-      else sq = { sx: 0.94, sy: 1.08 };                  // 腾空：拉长
-      drawFrame("idleA", 0, -lift, sq);
+      // 18px 弧线跳跃（程序化 squash 已撤：非整数缩放破坏像素网格，视觉评估判负优化；
+      // 弹性待 32×32 手绘跳姿帧兑现）
+      drawFrame("idleA", 0, -Math.round(18 * Math.sin(Math.PI * p)));
     } else if (reaction.type === "meow") {
       drawFrame("idleA", 0, 0); // 气泡在 click 时已弹出
     } else if (reaction.type === "roll") {
@@ -111,6 +107,10 @@ microPet.onHint((h) => {
 
 microPet.onState((msg) => {
   locale = msg.locale ?? locale;
+  if (msg.spriteId && msg.spriteId !== SPRITE_ID) {
+    // 换宠物：重取 sprite 集（网格/色板/帧全换，动画状态照常）
+    ({ PALETTE, GRID, FRAMES, SPRITE_ID } = microPet.sprites(msg.spriteId));
+  }
   if (msg.pet !== petState) {
     petState = msg.pet;
     animStart = performance.now();

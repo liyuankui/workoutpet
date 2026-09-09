@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ANIMS } from "../src/core/anims";
-import { FRAMES } from "../src/core/pixelcat";
+import { PETS } from "../src/core/pets";
 
 /** ANIMS ↔ FRAMES 静态校验：帧名拼错 = drawFrame 运行时崩溃白猫（不可爱，违宪） */
 describe("F30 动画表校验（可爱第一性的工程保障）", () => {
@@ -14,11 +14,13 @@ describe("F30 动画表校验（可爱第一性的工程保障）", () => {
     expect(states).toContain("cling");
   });
 
-  test("每条步骤引用的帧名都存在于 FRAMES", () => {
+  test("每条步骤引用的帧名在所有宠物的 FRAMES 中都存在（换宠不破动画契约）", () => {
     const bad: string[] = [];
     for (const [state, steps] of Object.entries(ANIMS)) {
       for (const [frame] of steps) {
-        if (!(frame in FRAMES)) bad.push(`${state}:${frame}`);
+        for (const pet of Object.values(PETS)) {
+          if (!(frame in pet.frames)) bad.push(`${pet.id}:${state}:${frame}`);
+        }
       }
     }
     expect(bad).toEqual([]);

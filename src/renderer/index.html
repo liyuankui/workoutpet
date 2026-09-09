@@ -37,8 +37,8 @@
     #bubble .title { font-size: 13px; font-weight: 600; color: #2f2a26; }
     #bubble .cue { font-size: 12px; color: #6b5f56; margin-top: 2px; }
     #cat {
-      width: 112px;   /* 16px × 7 */
-      height: 138px;  /* 顶部 26px 为跳跃+腾空拉伸预留（canvas 内裁剪曾吞掉跳高） */
+      width: 128px;   /* 32px × 4（高精网格） */
+      height: 154px;  /* 顶部 26px 为跳跃预留（canvas 内裁剪曾吞掉跳高） */
       image-rendering: pixelated;
       cursor: grab;
     }
@@ -48,7 +48,7 @@
 <body>
   <div id="stage">
     <div id="bubble"><div class="title"></div><div class="cue"></div></div>
-    <canvas id="cat" width="112" height="138"></canvas>
+    <canvas id="cat" width="128" height="154"></canvas>
   </div>
   <script src="renderer.js"></script>
 </body>

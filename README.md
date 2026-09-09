@@ -42,6 +42,7 @@ brew install --cask liyuankui/tap/micro-pet
 - **撒娇赖留**：连续跳过 3 次猫就不走了，赖在原地换着软话等你——点它一下即「和解打卡」
 - **平时点猫 = 随机互动**：蹭蹭 / 跳一下 / 喵～ / 打滚（500ms 节流）
 - 中英双语：跟随系统语言，托盘可切换
+- **两只宠物**（32×32 高精像素）：奶油橘猫 / 云白兔——托盘「宠物」随时换，streak 数据不变
 - 周报：托盘「复制周报」或 `bunx --bun micro-pet report`（需源码环境），数据在 `~/.micro-pet/streak.json`
 
 ## 配置（`~/.micro-pet/`）
@@ -54,6 +55,7 @@ brew install --cask liyuankui/tap/micro-pet
 | | `enabledExercises` | 动作 id 白名单（缺省全部）；猫自动按 下肢/肩颈/手腕/核心 四类轮换，保证均衡 |
 | | `locale` | `"zh-CN"` / `"en"`；缺省跟随系统（托盘切换即写此处） |
 | | `brx` / `bry` | 猫的右下角坐标，拖动后自动保存，重启保持 |
+| | `pet` | 宠物：`cat`（奶油橘猫）/ `bunny`（云白兔）；托盘切换即写此处 |
 | | `retryMin` | 跳过后顺延重试的间隔分钟（默认 8；运动没完成是顺延不是跳过） |
 | | `clingAfterSkips` | 连续跳过几次进入撒娇赖留（默认 3，0 = 关闭） |
 | `exercises.json` | — | **自定义动作库**（存在即覆盖内置），见下 |

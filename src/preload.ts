@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { FRAMES, GRID, PALETTE } from "./core/pixelcat";
+import { PETS, getPet, type PetId } from "./core/pets";
 import { ANIMS } from "./core/anims";
 import { strings, fmt } from "./core/i18n";
 import { react } from "./core/reactions";
@@ -7,6 +7,8 @@ import { shouldStartDrag } from "./core/dragging";
 
 export interface PetStateMsg {
   pet: "idle" | "remind" | "happy" | "cling" | "session";
+  /** 当前宠物 id（cat/bunny…）：变化时渲染端重取 sprite */
+  spriteId?: string;
   exercise: { id: string; name: string; emoji: string; cue: string; steps: string[] } | null;
   streakDays: number;
   locale: string;
@@ -31,8 +33,11 @@ contextBridge.exposeInMainWorld("microPet", {
   },
   petClick: () => ipcRenderer.send("pet-click"),
   ready: () => ipcRenderer.send("pet-ready"),
-  // sprite 静态数据（可序列化，供渲染端画像素猫）
-  sprites: () => ({ PALETTE, GRID, FRAMES, ANIMS }),
+  // sprite 静态数据（可序列化，供渲染端画当前宠物）
+  sprites: (petId?: string) => {
+    const p = getPet(petId ?? "cat");
+    return { PALETTE: p.palette, GRID: p.grid, FRAMES: p.frames, ANIMS, SPRITE_ID: p.id };
+  },
   // 双语文案 + 占位符模板
   strings: (locale: string) => strings(locale),
   fmt: (template: string, vars: Record<string, string | number>) => fmt(template, vars),

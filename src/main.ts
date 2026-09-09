@@ -8,7 +8,7 @@ import exercisesJson from "./core/exercises.json";
 import { userPaths, readUserExercisesRaw } from "./core/userConfig";
 import { appendCheckIn, countToday, currentStreak, readDB, localDateKey } from "./core/streak";
 import { renderReport } from "./core/report";
-import { FRAMES, frameToRGBA } from "./core/pixelcat";
+import { getPet, PETS, PET_IDS, frameToRGBA } from "./core/pets";
 import { fmt, isLocale, oppositeLocaleLabel, resolveLocale, strings, type Locale } from "./core/i18n";
 import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedule";
 import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemetry";
@@ -43,6 +43,8 @@ interface AppConfig {
   schedule?: unknown;
   /** 遥测开关：缺省开，false = 零网络请求 */
   telemetry?: boolean;
+  /** 宠物（cat/bunny…，缺省 cat） */
+  pet?: string;
   /** 顺延重试间隔分钟（P1：超时未完成 → 顺延非跳过） */
   retryMin?: number;
   /** 连续跳过多少次猫赖着撒娇（0 = 永不） */
@@ -268,6 +270,7 @@ function main() {
     }
     win.webContents.send("pet-state", {
       pet: machine.pet,
+      spriteId: getPet(readConfig().pet).id,
       exercise: view,
       streakDays:
         machine.pet === "happy"
@@ -386,11 +389,15 @@ function main() {
   });
 
   // ---------- Tray（：隐藏/退出 + 演示 + 语言切换 ） ----------
-  const icon = nativeImage.createFromBuffer(Buffer.from(frameToRGBA(FRAMES.happy)), {
-    width: 16,
-    height: 16,
-  });
-  tray = new Tray(icon);
+  const petNow = () => getPet(readConfig().pet);
+  const trayIcon = () => {
+    const pet = petNow();
+    return nativeImage.createFromBuffer(Buffer.from(frameToRGBA(pet, pet.frames.happy)), {
+      width: pet.grid,
+      height: pet.grid,
+    }).resize({ width: 16, height: 16 });
+  };
+  tray = new Tray(trayIcon());
 
   function buildTrayMenu() {
     const t = strings(currentLocale()).tray;
@@ -475,6 +482,21 @@ function main() {
               if (machine.pet === "idle") setSizeAnchored(CAT_W, CAT_H); // 4.5s 后收回
             }, 4600);
           },
+        },
+        {
+          label: t.pet,
+          submenu: PET_IDS.map((id) => ({
+            label: PETS[id].name[currentLocale()],
+            type: "radio" as const,
+            checked: petNow().id === id,
+            click: () => {
+              saveConfig({ pet: id });
+              tray!.setImage(trayIcon());
+              buildTrayMenu(); // radio 勾选即时刷新
+              broadcast();     // 渲染端换 sprite
+              rlog(`换宠物 · ${id}`);
+            },
+          })),
         },
         {
           // 语言切换入口只显示目标语言自名（中文环境见 English / 英文环境见 简体中文）：
