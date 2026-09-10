@@ -70,7 +70,9 @@ function playSkit(now) {
       if (skit.caught && t < 6.6) oy = -6;
     }
     const catOx = Math.max(-40, Math.min(24, mx - 84)); // 追在老鼠后头
-    drawFrame(catFrame, catOx, oy);
+    const chase = t < 5 ? runRhythm(now) : { bob: 0, sway: 0 };
+    drawFrame(catFrame, catOx + chase.sway, oy + chase.bob);
+    if (t < 5) drawSpeedLines(now, catOx + chase.sway);
   } else if (skit.type === "mouse" && skit.caught && t >= 7.6 && t < 8.4) {
     // 谢幕：叼着战利品亮个相
     drawFrame("happy", 0, -4);
@@ -128,6 +130,24 @@ function drawFrame(name, ox, oy, sq) {
   drawOutfit(ox, oy); // 装扮随帧偏移（跳跃/浮动一起走）
 }
 
+// 跑动律动（走位/追逐共用）：四拍颠簸 + 重心横摆 + 身后速度线——跑得像跑
+function runRhythm(now) {
+  const bob = -Math.abs(Math.round(3 * Math.sin(now / 85)));
+  const sway = Math.round(Math.sin(now / 85) * 1);
+  return { bob, sway };
+}
+function drawSpeedLines(now, ox) {
+  const flick = Math.floor(now / 80) % 3; // 闪烁节拍
+  ctx.fillStyle = "rgba(74,59,50,0.35)";
+  const baseX = 64 + ox;
+  const lines = [
+    { y: 40 + flick * 2, len: 14 },
+    { y: 60 - flick * 2, len: 10 },
+    { y: 84 + flick, len: 12 },
+  ];
+  for (const l of lines) ctx.fillRect(baseX + 20, l.y, l.len, 3);
+}
+
 function loop(now) {
   if (!reaction && playSkit(now)) { // 小剧场（用户点了猫则让位于 reaction）
     requestAnimationFrame(loop);
@@ -157,10 +177,16 @@ function loop(now) {
   const total = anim.reduce((s, f) => s + f[1], 0);
   let t = (now - animStart) % total;
   // 呼吸浮动：静止≠死物（仅闲坐/撒娇，动作状态不乱浮）
-  const bob = petState === "idle" || petState === "cling" ? Math.round(Math.sin(now / 650) * 1.5) : 0; // walk 时也静止即可
   for (const [name, dur, ox, oy] of anim) {
     if (t < dur) {
-      drawFrame(name, ox, oy + bob);
+      if (petState === "walk") {
+        const r = runRhythm(now);
+        drawFrame(name, ox + r.sway, oy + r.bob);
+        drawSpeedLines(now, ox + r.sway);
+      } else {
+        const bob = petState === "idle" || petState === "cling" ? Math.round(Math.sin(now / 650) * 1.5) : 0;
+        drawFrame(name, ox, oy + bob);
+      }
       break;
     }
     t -= dur;

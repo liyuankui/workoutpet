@@ -4,10 +4,10 @@ export type AnimStep = [frame: string, durMs: number, ox: number, oy: number];
 export type AnimTable = Record<string, AnimStep[]>;
 
 export const ANIMS: AnimTable = {
-  // 跑动（F22 走位）：快速交替左右步——窗口在动，帧只需表达小跑感
+  // 跑动（F22 走位）：坐姿↔前爪探出交替=迈步；配合渲染端四拍颠簸与速度线
   walk: [
-    ["idleA", 140, 0, 0],
-    ["idleWag", 140, 0, 0],
+    ["idleA", 130, 0, 0],
+    ["stretchA", 130, 0, 0],
   ],
   idle: [
     ["idleA", 1100, 0, 0],
