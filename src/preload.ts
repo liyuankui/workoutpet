@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { PETS, getPet, type PetId } from "./core/pets";
+import { getPet } from "./core/pets";
 import { ANIMS } from "./core/anims";
 import { MOUSE_FRAMES, MOUSE_PALETTE, MOUSE_W, MOUSE_H } from "./core/mouse";
 import { OUTFITS, OUTFIT_PALETTE } from "./core/outfits";

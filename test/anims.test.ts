@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ANIMS } from "../src/core/anims";
-import { PETS } from "../src/core/pets";
+import { getPet } from "../src/core/pets";
+import { CAT_PERSONAS } from "../src/core/cats";
 
 /** ANIMS ↔ FRAMES 静态校验：帧名拼错 = drawFrame 运行时崩溃白猫（不可爱，违宪） */
 describe("F30 动画表校验（可爱第一性的工程保障）", () => {
@@ -14,12 +15,13 @@ describe("F30 动画表校验（可爱第一性的工程保障）", () => {
     expect(states).toContain("cling");
   });
 
-  test("每条步骤引用的帧名在所有宠物的 FRAMES 中都存在（换宠不破动画契约）", () => {
+  test("每条步骤引用的帧名在所有猫（6 人设 × 花色重着色后）中都存在——换猫不破动画契约", () => {
     const bad: string[] = [];
     for (const [state, steps] of Object.entries(ANIMS)) {
       for (const [frame] of steps) {
-        for (const pet of Object.values(PETS)) {
-          if (!(frame in pet.frames)) bad.push(`${pet.id}:${state}:${frame}`);
+        for (const persona of CAT_PERSONAS) {
+          const pet = getPet(persona.id);
+          if (!(frame in pet.frames)) bad.push(`${persona.id}:${state}:${frame}`);
         }
       }
     }

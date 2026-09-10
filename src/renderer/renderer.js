@@ -13,6 +13,7 @@ const LIFT_PAD = 26; // canvas 顶部跳跃/浮动预留（跳 18px + 余量）�
 
 let petState = "idle";
 let locale = "zh-CN";
+let personaPool = "clingy"; // 当前猫的性情文案池
 let animStart = performance.now();
 
 // 点击互动反应
@@ -24,7 +25,7 @@ const MOUSE = microPet.mouse();
 const { OUTFITS, PALETTE: OPAL } = microPet.outfits();
 let outfit = null; // 当前装扮 id
 const SKIT_MS = 8000;
-let skit = null;            // { type, start }
+let skit = null;            // { type, start, caught }
 
 function drawMouse(frame, px, py) {
   const pal = MOUSE.PALETTE;
@@ -42,7 +43,16 @@ function drawMouse(frame, px, py) {
 function playSkit(now) {
   if (!skit) return false;
   const t = (now - skit.start) / 1000;
-  if (t * 1000 >= SKIT_MS) { skit = null; return false; }
+  if (t * 1000 >= SKIT_MS) {
+    const caught = skit.caught;
+    skit = null;
+    if (caught) {
+      const strs = microPet.strings(locale);
+      showBubble(microPet.fmt(strs.bubble.caughtLine ?? "抓到啦！小鱼干 +1 🐟", {}), "");
+      setTimeout(() => { if (petState === "idle") hideBubble(); }, 2600);
+    }
+    return false;
+  }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (skit.type === "mouse") {
     // 老鼠横穿（后段加速逃命），猫追半程、扑一下、扑空
@@ -55,9 +65,16 @@ function playSkit(now) {
     if (t >= 5 && t < 6.2) { // 扑！
       oy = -Math.round(14 * Math.sin(Math.PI * (t - 5) / 1.2));
       catFrame = "happy";
-    } else if (t >= 6.2) catFrame = "plead"; // 扑空失落，求安慰
+    } else if (t >= 6.2) {
+      catFrame = skit.caught ? "happy" : "plead"; // 抓到：得意；扑空：失落求安慰
+      if (skit.caught && t < 6.6) oy = -6;
+    }
     const catOx = Math.max(-40, Math.min(24, mx - 84)); // 追在老鼠后头
     drawFrame(catFrame, catOx, oy);
+  } else if (skit.type === "mouse" && skit.caught && t >= 7.6 && t < 8.4) {
+    // 谢幕：叼着战利品亮个相
+    drawFrame("happy", 0, -4);
+    return true;
   } else {
     // hop：原地连蹦（三组两连跳，间以期待眼神）
     const phase = t % 2.6;
@@ -72,7 +89,7 @@ function playSkit(now) {
 }
 
 microPet.onSkit((msg) => {
-  if (petState === "idle") skit = { type: msg.type, start: performance.now() };
+  if (petState === "idle") skit = { type: msg.type, start: performance.now(), caught: !!msg.caught };
 });
 
 function drawOutfit(ox, oy) {
@@ -182,6 +199,7 @@ microPet.onHint((h) => {
 microPet.onState((msg) => {
   locale = msg.locale ?? locale;
   if (msg.outfit !== undefined) outfit = msg.outfit;
+  if (msg.pool) personaPool = msg.pool;
   // 走位中（外出/跑回）：播跑动帧，状态切换冻结（bob 不适用）
   const shown = msg.walking ? "walk" : msg.pet;
   if (msg.spriteId && msg.spriteId !== SPRITE_ID) {
@@ -201,8 +219,8 @@ microPet.onState((msg) => {
     // F25 陪练：倒数 + 当前步骤（主进程每秒推送）；再点猫提前结束也算完成
     showBubble(`⏱ ${msg.sessionRemainSec ?? "?"}s · ${msg.exercise.emoji} ${msg.exercise.name}`, msg.sessionStep ?? "");
   } else if (msg.pet === "cling") {
-    // 撒娇赖留：每次 broadcast（含 10 分钟轮换）随机换一句软话——可爱不指责
-    const pool = s.bubble.cling ?? [];
+    // 撒娇赖留：按性情选池，每次 broadcast（含 10 分钟轮换）随机换一句——可爱不指责
+    const pool = (s.bubble.clingPools && s.bubble.clingPools[personaPool]) || s.bubble.cling || [];
     const line = pool.length ? pool[Math.floor(Math.random() * pool.length)] : s.bubble.petMe;
     const ex = msg.exercise;
     showBubble(ex ? `${line}（${ex.emoji} ${ex.name}）` : line, "");
@@ -269,7 +287,9 @@ canvas.addEventListener("click", () => {
   lastReactAt = now;
   reaction = { type: r, start: now, duration: r === "meow" ? 900 : 700 };
   if (r === "meow") {
-    showBubble(microPet.strings(locale).meow, "");
+    const strs = microPet.strings(locale);
+    const pool = (strs.bubble.meowPools && strs.bubble.meowPools[personaPool]) || [strs.meow];
+    showBubble(pool[Math.floor(Math.random() * pool.length)], "");
     setTimeout(() => { if (petState === "idle" || petState === "happy") hideBubble(); }, 900);
   }
 });

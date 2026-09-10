@@ -60,3 +60,11 @@ export function applyRoamUniform(ms: number): void {
   ROAM.outMaxMs = ms;
   ROAM.recallLeadMs = ms / 2;
 }
+
+/** 性情注入（F32）：漫游区间按性情覆写（模块常量，main 启动/换猫时调用） */
+export function applyRoamPersonality(r: { homeMinMs: number; homeMaxMs: number; outMinMs: number; outMaxMs: number }): void {
+  ROAM.homeMinMs = r.homeMinMs;
+  ROAM.homeMaxMs = r.homeMaxMs;
+  ROAM.outMinMs = r.outMinMs;
+  ROAM.outMaxMs = r.outMaxMs;
+}

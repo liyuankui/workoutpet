@@ -29,9 +29,15 @@ export function wantsSkit(
   return true;
 }
 
-/** 随机选剧目（老鼠为主，蹦跳点缀） */
-export function pickSkit(rand: () => number = Math.random): "mouse" | "hop" {
-  return rand() < 0.7 ? "mouse" : "hop";
+/** 随机选剧目：mouseBias 为抽中老鼠的概率（性情可调——胆小猫怕老鼠） */
+export function pickSkit(rand: () => number = Math.random, mouseBias = 0.7): "mouse" | "hop" {
+  return rand() < mouseBias ? "mouse" : "hop";
+}
+
+/** 性情注入（F32）：剧场间隔按性情覆写 */
+export function applySkitPersonality(gapMinMs: number, gapMaxMs: number): void {
+  SKIT.minGapMs = gapMinMs;
+  SKIT.maxGapMs = gapMaxMs;
 }
 
 /** dev/验证：节奏固定化 */

@@ -109,3 +109,67 @@ export function signboardKind(todayCount: number, goalDaily: number | undefined)
   if (goalDaily && goalDaily > 0) return todayCount >= goalDaily ? "met" : "goalN";
   return "plainN";
 }
+
+/**
+ * 工作日 streak（F32，2026-09-10 Kyle 定调）：
+ * - 只计周一~周五打卡（达标日规则同 currentStreak）；周末天然豁免——猫周末在旅行，人休息天理同权
+ * - 每月 gracePerMonth 天「猫咪代守」：工作日缺席自动消耗（零操作），休假/出差不断签
+ * - 今天尚未达标从上一工作日起算（不因跨日即断）
+ */
+export interface WorkdayStreak {
+  streak: number;
+  guarded: number; // 回溯中消耗的代守天数（供 log/展示）
+}
+
+export function workdayStreak(
+  records: CheckIn[],
+  todayKey: string,
+  goalDaily: number | undefined,
+  gracePerMonth = 2,
+): WorkdayStreak {
+  const perDay = new Map<string, number>();
+  for (const r of records) perDay.set(r.date, (perDay.get(r.date) ?? 0) + 1);
+  const met = (key: string) =>
+    goalDaily && goalDaily > 0 ? (perDay.get(key) ?? 0) >= goalDaily : perDay.has(key);
+
+  const isWorkday = (d: Date) => d.getDay() !== 0 && d.getDay() !== 6;
+  let cursor = parseKey(todayKey);
+
+  // 起点：先跳过开头连续缺席（今天没达标不算断；「从未开始」不消耗代守——猫只守进行中的 streak）
+  let started = false;
+  for (let i = 0; i < 400; i++) {
+    if (isWorkday(cursor) && met(fmtKey(cursor))) { started = true; break; }
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  if (!started) return { streak: 0, guarded: 0 };
+
+  // 回到今天或最近达标日，从该工作日起算
+  cursor = parseKey(todayKey);
+  if (isWorkday(cursor) && !met(fmtKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+
+  let streak = 0;
+  let guarded = 0;
+  const guardUsed = new Map<string, number>(); // YYYY-MM → 已代守数
+  // 最多回溯 400 天（防脏数据死循环）
+  for (let i = 0; i < 400; i++) {
+    if (!isWorkday(cursor)) {
+      cursor.setDate(cursor.getDate() - 1);
+      continue;
+    }
+    const key = fmtKey(cursor);
+    if (met(key)) {
+      streak++;
+    } else {
+      const month = key.slice(0, 7);
+      const used = guardUsed.get(month) ?? 0;
+      if (used < gracePerMonth) {
+        guardUsed.set(month, used + 1);
+        guarded++; // 猫咪代守：这一天它替你看着
+      } else {
+        break; // 额度尽，streak 到此为止
+      }
+    }
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak > 0 ? { streak, guarded } : { streak: 0, guarded: 0 }; // 断掉的 streak，代守无意义
+}

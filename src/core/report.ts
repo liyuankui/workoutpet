@@ -1,5 +1,5 @@
 import type { StreakDB } from "./streak";
-import { currentStreak, localDateKey, weekReport } from "./streak";
+import { localDateKey, weekReport, workdayStreak } from "./streak";
 import { localizeExercise, type Exercise } from "./exercises";
 import { fmt, strings, isLocale, DEFAULT_LOCALE, type Locale } from "./i18n";
 
@@ -15,7 +15,7 @@ export function renderReport(
   const loc: Locale = isLocale(locale) ? locale : DEFAULT_LOCALE;
   const t = strings(loc).report;
   const todayKey = localDateKey(now, tz);
-  const streak = currentStreak(db.records, todayKey, goalDaily);
+  const { streak, guarded } = workdayStreak(db.records, todayKey, goalDaily);
   const { weekCount, perExercise, monday } = weekReport(db.records, todayKey);
   const todayCount = db.records.filter((r) => r.date === todayKey).length;
   const todayLine = goalDaily && goalDaily > 0
@@ -46,7 +46,7 @@ export function renderReport(
   return [
     fmt(t.title, { monday }),
     "",
-    fmt(t.streak, { n: streak }),
+    fmt(t.streak, { n: streak }) + (guarded > 0 ? `（${fmt(t.guarded, { n: guarded })}）` : ""),
     todayLine,
     fmt(t.week, { n: weekCount }),
     ...(completion !== null ? [fmt(t.completion, { n: completion })] : []),

@@ -1,57 +1,38 @@
 import { describe, expect, test } from "bun:test";
-import { PETS, PET_IDS, getPet, isPetId } from "../src/core/pets";
+import { getPet } from "../src/core/pets";
+import { CAT_PERSONAS } from "../src/core/cats";
 import { ANIMS } from "../src/core/anims";
 
-/** F31 多宠物 + 32×32 帧校验（可爱第一性的工程保障） */
-describe("F31 宠物注册表", () => {
-  test("注册两只；非法 id 回退猫", () => {
-    expect(PET_IDS).toEqual(["cat", "bunny"]);
-    expect(getPet("bunny").id).toBe("bunny");
-    expect(getPet("dragon").id).toBe("cat");
-    expect(getPet(undefined).id).toBe("cat");
-    expect(isPetId("cat")).toBe(true);
-    expect(isPetId("dog")).toBe(false);
-  });
-
-  test("每只宠物：帧 32 行 × 32 字符，字符均在色板内", () => {
-    for (const pet of Object.values(PETS)) {
+/** F32 猫宇宙 sprite 组装：6 只猫逐只校验（骨架 × 花色重着色） */
+describe("F32 猫宇宙 sprite", () => {
+  test("六只猫帧 32×32、字符合法、帧名契约齐备", () => {
+    for (const persona of CAT_PERSONAS) {
+      const pet = getPet(persona.id);
       expect(pet.grid).toBe(32);
       for (const [name, frame] of Object.entries(pet.frames)) {
-        expect(frame.length, `${pet.id}/${name} 行数`).toBe(32);
+        expect(frame.length, `${persona.id}/${name}`).toBe(32);
         for (const row of frame) {
-          expect(row.length, `${pet.id}/${name} 行宽`).toBe(32);
-          for (const ch of row) expect(ch in pet.palette, `${pet.id}/${name} 未知字符 ${ch}`).toBe(true);
+          expect(row.length).toBe(32);
+          for (const ch of row) expect(ch in pet.palette, `${persona.id}/${name} 未知字符 ${ch}`).toBe(true);
         }
       }
+      const needed = new Set<string>();
+      for (const steps of Object.values(ANIMS)) for (const [f] of steps) needed.add(f);
+      for (const f of needed) expect(f in pet.frames, `${persona.id} 缺帧 ${f}`).toBe(true);
     }
   });
 
-  test("帧名契约：ANIMS 引用的帧每只都有（idleA/idleWag/blink/stretchA/stretchB/happy/roll/plead）", () => {
-    const needed = new Set<string>();
-    for (const steps of Object.values(ANIMS)) for (const [f] of steps) needed.add(f);
-    for (const pet of Object.values(PETS)) {
-      for (const f of needed) expect(f in pet.frames, `${pet.id} 缺帧 ${f}`).toBe(true);
-    }
+  test("花色真实生效：玄猫有金眼色板、奶牛帧含斑字符、暹罗帧含面具字符", () => {
+    const voidCat = getPet("momo");
+    expect(voidCat.palette.E).toBe("#f2c14e");
+    const cow = getPet("huajuan"); // 花卷=三花（含斑）
+    expect(cow.frames.idleA.some((r) => r.includes("S"))).toBe(true);
+    const siamese = getPet("mimi");
+    expect(siamese.frames.idleA.some((r) => r.includes("D"))).toBe(true);
   });
 
-  test("猫：奶油橘（O 主色 + W 高光）；撒娇帧有泪光（plead 高光在下排）", () => {
-    const cat = PETS.cat;
-    expect("O" in cat.palette).toBe(true);
-    expect(cat.palette.W).toBe("#ffffff");
-    const idle = cat.frames.idleA.join("");
-    expect(idle).toContain("W"); // 眼睛高光存在
-  });
-
-  test("兔：米白身（V）无橘（O）；长耳粉芯（y0..7 有 P）", () => {
-    const bunny = PETS.bunny;
-    expect("V" in bunny.palette).toBe(true);
-    expect("O" in bunny.palette).toBe(false);
-    const top = bunny.frames.idleA.slice(0, 8).join("");
-    expect(top).toContain("P"); // 长耳内芯
-    expect(top).toContain("K");
-  });
-
-  test("两宠互有辨识度：帧内容不同", () => {
-    expect(PETS.cat.frames.idleA).not.toEqual(PETS.bunny.frames.idleA);
+  test("非法 id 回退小橘（含退役 bunny 兼容）", () => {
+    expect(getPet("bunny").id).toBe("xiaoju");
+    expect(getPet(undefined).id).toBe("xiaoju");
   });
 });

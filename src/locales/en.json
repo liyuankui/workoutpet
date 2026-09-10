@@ -15,7 +15,6 @@
     "demoMeow": "Meow~",
     "demoRoll": "Roll over",
     "demoBoard": "Sign: today's progress",
-    "pet": "Pet",
     "demoSkitMouse": "Skit: chase the mouse",
     "demoSkitHop": "Skit: hops",
     "validateConfig": "Validate config",
@@ -25,11 +24,13 @@
       "scarf": "🧣 Red scarf",
       "bow": "🎀 Ribbon bow",
       "wand": "🪄 Cat teaser (recall + hop)"
-    }
+    },
+    "cattery": "Cattery (🐟 {n})",
+    "thisCat": "About this cat"
   },
   "bubble": {
     "letsGo": "let's go",
-    "good": "Nice! Day {n} streak 🎉",
+    "good": "Nice! {n} workdays in a row 🎉",
     "petMe": "pet me~",
     "cling": [
       "One little move with me? Please~",
@@ -40,7 +41,68 @@
     ],
     "todayGoalN": "Today {n}/{m}",
     "todayN": "Today: {n} ✓",
-    "goalMet": "Daily goal met 🎉"
+    "goalMet": "Daily goal met 🎉",
+    "meowPools": {
+      "clingy": [
+        "Mew~ stay with me?",
+        "Rub rub~",
+        "Pet me please?",
+        "I'll wait right here~",
+        "Mew~ like you most"
+      ],
+      "playful": [
+        "MEW! Watch me!",
+        "Chase me~",
+        "Hehe, cat attack!",
+        "Mrrrow—!",
+        "Play play play!"
+      ],
+      "calm": [
+        "Mew.",
+        "Mm, here.",
+        "Mew~",
+        "Nothing. Just mew.",
+        "Present."
+      ],
+      "timid": [
+        "Um… mew",
+        "Mew… it's nothing",
+        "(quietly) mew",
+        "M-mew?",
+        "…hi"
+      ]
+    },
+    "clingPools": {
+      "clingy": [
+        "One little move with me? Please~",
+        "I've been waiting so long…",
+        "Pet me and let's go~",
+        "Don't wander off, move with me~",
+        "I'm clingy about you — and exercise~"
+      ],
+      "playful": [
+        "Play with me! Move it!",
+        "C'mon c'mon, one minute!",
+        "I run, you run!",
+        "Move and catch me!",
+        "Charge — together!"
+      ],
+      "calm": [
+        "Time to move.",
+        "Together. Quick one.",
+        "Exercise o'clock.",
+        "I'm here. You move.",
+        "Come. Follow me."
+      ],
+      "timid": [
+        "Um… could you maybe move with me?",
+        "It's okay, together…",
+        "Just a tiny move…",
+        "I'll go if you go…",
+        "Mew… shall we try?"
+      ]
+    },
+    "caughtLine": "Caught it! Brought you a fish 🐟"
   },
   "meow": "Meow~",
   "hints": {
@@ -50,11 +112,12 @@
   },
   "report": {
     "title": "# 🐱 Micro-pet Weekly Report (since {monday})",
-    "streak": "Current streak: **{n} day(s)**",
+    "streak": "{n} workdays in a row 🔥",
     "today": "Today: {n} check-in(s)",
     "week": "This week: {n} check-in(s)",
     "dist": "## Exercise Distribution",
     "empty": "(No check-ins yet — go pet the cat)",
-    "completion": "Follow-through this week: {n}%"
+    "completion": "Follow-through this week: {n}%",
+    "guarded": "cat guarded {n} days"
   }
 }

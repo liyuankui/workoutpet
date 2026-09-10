@@ -1,33 +1,32 @@
-// 多宠物注册表：每个宠物一个模块（palette + grid + frames），帧名契约统一
-// （renderer ANIMS 引用帧名；切换宠物 = 切换 sprite 集，状态机/打卡完全解耦）
-import * as cat from "./cat";
-import * as bunny from "./bunny";
+// 猫宇宙 sprite 组装（F32）：骨架帧（pets/cat）× 花色（coats）→ 重着色后的当前猫
+// 兔子已退役（2026-09-10）：旧 config.pet=bunny 静默回退小橘；bunny 资产留在 git 史
+import * as catSkeleton from "./cat";
+import { getCoat, recolorFrame, SPOT_COLORS, type Coat } from "../coats";
+import { getPersona } from "../cats";
 
 export interface PetSprite {
-  id: PetId;
+  id: string;
   name: { "zh-CN": string; en: string };
   palette: Record<string, string | null>;
   grid: number;
   frames: Record<string, string[]>;
 }
 
-export type PetId = "cat" | "bunny";
-export const PET_IDS: PetId[] = ["cat", "bunny"];
-
-export function isPetId(v: unknown): v is PetId {
-  return v === "cat" || v === "bunny";
+export function getPet(personaId: unknown): PetSprite {
+  const persona = getPersona(personaId);
+  const coat: Coat = getCoat(persona.coatId);
+  return {
+    id: persona.id,
+    name: persona.name,
+    palette: { ...catSkeleton.PALETTE, ...coat.palette, ...SPOT_COLORS },
+    grid: catSkeleton.GRID,
+    frames: Object.fromEntries(
+      Object.entries(catSkeleton.FRAMES).map(([k, f]) => [k, recolorFrame(f, coat)]),
+    ),
+  };
 }
 
-export const PETS: Record<PetId, PetSprite> = {
-  cat: { id: "cat", name: { "zh-CN": "奶油橘猫", en: "Cream Cat" }, palette: cat.PALETTE, grid: cat.GRID, frames: cat.FRAMES },
-  bunny: { id: "bunny", name: { "zh-CN": "云白兔", en: "Cloud Bunny" }, palette: bunny.PALETTE, grid: bunny.GRID, frames: bunny.FRAMES },
-};
-
-export function getPet(id: unknown): PetSprite {
-  return isPetId(id) ? PETS[id] : PETS.cat;
-}
-
-/** tray 图标用：帧 → RGBA 缓冲（按宠物网格尺寸） */
+/** tray 图标用：帧 → RGBA 缓冲 */
 export function frameToRGBA(pet: PetSprite, frame: readonly string[]): Uint8Array {
   const g = pet.grid;
   const buf = new Uint8Array(g * g * 4);

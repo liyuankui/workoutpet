@@ -6,20 +6,23 @@ import { createMachine, dispatch, effectiveIntervalMs, DEFAULT_CONFIG, type Mach
 import { localizeExercise, resolveExercises, pickBalanced, type Exercise } from "./core/exercises";
 import exercisesJson from "./core/exercises.json";
 import { userPaths, readUserExercisesRaw } from "./core/userConfig";
-import { appendCheckIn, countToday, currentStreak, readDB, localDateKey } from "./core/streak";
+import { appendCheckIn, countToday, readDB, localDateKey, workdayStreak } from "./core/streak";
 import { renderReport } from "./core/report";
-import { getPet, PETS, PET_IDS, frameToRGBA } from "./core/pets";
+import { getPet, frameToRGBA } from "./core/pets";
+import { getCoat } from "./core/coats";
+import { CAT_PERSONAS, CAT_PRICE, getPersona, starterCats } from "./core/cats";
+import { getPersonality } from "./core/personalities";
 import { fmt, isLocale, oppositeLocaleLabel, resolveLocale, strings, type Locale } from "./core/i18n";
 import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedule";
 import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemetry";
 import { computeDragPosition } from "./core/dragging";
 import { appendPetLog } from "./core/petlog";
-import { applySkitUniform, createSkit, pickSkit, wantsSkit, type SkitState } from "./core/skit";
+import { applySkitPersonality, applySkitUniform, createSkit, pickSkit, wantsSkit, type SkitState } from "./core/skit";
 import { parseClingAfterSkips, parseRetryMs } from "./core/behaviorConfig";
 import { currentStepIndex } from "./core/session";
 import { auditConfig } from "./core/configAudit";
-import { buyItem, earnOnCheckIn, emptyInventory, SHOP, toggleOutfit, type Inventory } from "./core/inventory";
-import { applyRoamUniform, createRoam, nextHomeStay, nextOutDuration, shouldRecall, tooCloseToRemind, wantsRoam, type RoamState } from "./core/roam";
+import { buyCat, buyItem, claimMilestone, earnBonus, earnOnCheckIn, emptyInventory, ensureCats, SHOP, toggleOutfit, type Inventory } from "./core/inventory";
+import { applyRoamPersonality, applyRoamUniform, createRoam, nextHomeStay, nextOutDuration, shouldRecall, tooCloseToRemind, wantsRoam, type RoamState } from "./core/roam";
 
 // ---------- boot 日志（最先执行：LS 启动无 stdout，靠它诊断"静默僵尸"） ----------
 const BOOT_LOG = join(process.env.MICROPET_HOME ?? join(homedir(), ".micro-pet"), "boot.log");
@@ -175,7 +178,7 @@ function main() {
   const envInterval = Number(process.env.MICROPET_INTERVAL_SEC ?? 0) * 1000;
   // dev 覆盖：MICROPET_RETRY_SEC（验证顺延链用；生产取 config retryMin，默认 8 分钟）
   const retryMs = Number(process.env.MICROPET_RETRY_SEC ?? 0) * 1000 || parseRetryMs(cfg);
-  const machineCfg: MachineConfig = {
+  let machineCfg: MachineConfig = { // let：性情注入会覆写 clingAfterSkips
     ...DEFAULT_CONFIG,
     intervalMs: envInterval > 0 ? envInterval : safeIntervalMin(cfg.intervalMin) * 60_000,
     remindTimeoutMs: Number(process.env.MICROPET_REMIND_TIMEOUT_SEC ?? 0) * 1000 || DEFAULT_CONFIG.remindTimeoutMs,
@@ -336,11 +339,12 @@ function main() {
     win.webContents.send("pet-state", {
       pet: machine.pet,
       walking,
-      spriteId: getPet(readConfig().pet).id,
+      spriteId: getPet(inv.activeCat).id,
+      pool: getPersonality(activeCat().personalityId).pool,
       exercise: view,
       streakDays:
         machine.pet === "happy"
-          ? currentStreak(readDB(DB_PATH).records, localDateKey(Date.now()), goalDaily)
+          ? workdayStreak(readDB(DB_PATH).records, localDateKey(Date.now()), goalDaily).streak
           : 0, // streak 只在 happy 气泡需要，避免每秒读盘
       locale,
       sessionRemainSec,
@@ -373,12 +377,19 @@ function main() {
       });
       const full = machine.exercise ? result.checkedInSec === machine.exercise.durationSec : false;
       rlog(`打卡 ✓ ${result.checkedIn.id} · 跟做 ${result.checkedInSec}s${full ? "（完整）" : ""}`);
-      // F26 小鱼干：打卡 +1，达标日 +2（每日一次），日上限 6
+      // F26/F32 小鱼干：打卡 +1，达标日 +2（每日一次）；完整跟做再 +1；日上限 8
       const todayKey = localDateKey(Date.now());
       const goalMet = !!goalDaily && countToday(readDB(DB_PATH).records, todayKey) >= goalDaily;
-      const earn = earnOnCheckIn(readInventory(), todayKey, goalMet);
-      writeInventory(earn.inv);
-      if (earn.gained > 0) rlog(`得小鱼干 ×${earn.gained}（余额 ${earn.inv.fish}）${goalMet && earn.gained > 1 ? " · 达标奖励" : ""}`);
+      let invEarn = earnOnCheckIn(readInventory(), todayKey, goalMet).inv;
+      if (full) invEarn = earnBonus(invEarn, todayKey).inv; // 完整跟做奖励（H2 胡萝卜）
+      // 工作日 streak 里程碑（3/7/14/30 → 3/5/10/20，一次性，独立于日上限）
+      const ws = workdayStreak(readDB(DB_PATH).records, todayKey, goalDaily);
+      const ms = claimMilestone(invEarn, ws.streak);
+      invEarn = ms.inv;
+      writeInventory(invEarn);
+      const gainedBits = [goalMet && "达标奖励", full && "完整跟做 +1", ms.reward > 0 && `里程碑 ${ws.streak} 工作日 +${ms.reward}`].filter(Boolean);
+      rlog(`得小鱼干（余额 ${invEarn.fish}）${gainedBits.length ? " · " + gainedBits.join(" · ") : ""}${ws.guarded > 0 ? ` · 猫咪代守 ${ws.guarded} 天` : ""}`);
+      inv = invEarn; // 同步本地账本缓存
       tel("check_in", { exercise: result.checkedIn.id, durationSec: result.checkedInSec ?? undefined });
     }
 
@@ -438,10 +449,19 @@ function main() {
       }
       // F27 小剧场：在家静坐且离提醒够远时随机开演（每小时 2-3 场，正戏优先）
       if (wantsSkit(skit, now, { petIdle: true, visible: win.isVisible(), walking, roaming: roam.roaming, remindDueAt })) {
-        const type = pickSkit();
+        const type = pickSkit(Math.random, getPersonality(activeCat().personalityId).mouseBias);
         skit = createSkit(now); // 下一场重新计时
-        rlog(`小剧场开演 · ${type === "mouse" ? "抓老鼠" : "蹦跳"}`);
-        win.webContents.send("pet-skit", { type });
+        // 抓到老鼠 10%（变奖赏彩蛋）：真抓到叼来一条鱼干
+        const caught = type === "mouse" && Math.random() < 0.1;
+        if (caught) {
+          const tk = localDateKey(Date.now());
+          const got = earnBonus(readInventory(), tk);
+          writeInventory(got.inv);
+          inv = got.inv;
+          if (got.gained > 0) rlog("叼来一条鱼干 🐟（真抓到了！）");
+        }
+        rlog(`小剧场开演 · ${type === "mouse" ? "抓老鼠" : "蹦跳"}${caught ? "（会抓到）" : ""}`);
+        win.webContents.send("pet-skit", { type, caught });
       }
     }
     // F23 撒娇赖留：cling 常驻，每 10 分钟换一句软话（broadcast 重发 → 渲染端随机选）
@@ -485,9 +505,21 @@ function main() {
   });
 
   // ---------- Tray（：隐藏/退出 + 演示 + 语言切换 ） ----------
-  const petNow = () => getPet(readConfig().pet);
+  // F32 猫宇宙：当前猫 = 账本 activeCat（首次迁移赠 starter）；性情注入行为参数
+  let inv = ensureCats(readInventory(), starterCats());
+  writeInventory(inv);
+  const activeCat = () => getPersona(inv.activeCat);
+  const applyCat = () => {
+    const persona = activeCat();
+    const per = getPersonality(persona.personalityId);
+    applyRoamPersonality(per.roam);
+    applySkitPersonality(per.skitGapMinMs, per.skitGapMaxMs);
+    machineCfg = { ...machineCfg, clingAfterSkips: per.clingAfterSkips }; // 性情 > config（F32 设计）
+    rlog(`当前猫 · ${persona.name["zh-CN"]}（${per.name["zh-CN"]}）`);
+  };
+  applyCat();
   const trayIcon = () => {
-    const pet = petNow();
+    const pet = getPet(inv.activeCat);
     return nativeImage.createFromBuffer(Buffer.from(frameToRGBA(pet, pet.frames.happy)), {
       width: pet.grid,
       height: pet.grid,
@@ -545,7 +577,7 @@ function main() {
                 const board = goalDaily && goalDaily > 0
                   ? (n >= goalDaily ? b.goalMet : fmt(b.todayGoalN, { n, m: goalDaily }))
                   : fmt(b.todayN, { n });
-                const cue = fmt(strings(currentLocale()).bubble.good, { n: currentStreak(readDB(DB_PATH).records, localDateKey(Date.now()), goalDaily) });
+                const cue = fmt(strings(currentLocale()).bubble.good, { n: workdayStreak(readDB(DB_PATH).records, localDateKey(Date.now()), goalDaily).streak });
                 if (machine.pet === "idle") setSizeAnchored(FULL_W, FULL_H);
                 win.webContents.send("pet-hint", { title: board, cue });
                 setTimeout(() => { if (machine.pet === "idle") setSizeAnchored(CAT_W, CAT_H); }, 4600);
@@ -637,19 +669,50 @@ function main() {
           },
         },
         {
-          label: t.pet,
-          submenu: PET_IDS.map((id) => ({
-            label: PETS[id].name[currentLocale()],
-            type: "radio" as const,
-            checked: petNow().id === id,
-            click: () => {
-              saveConfig({ pet: id });
-              tray!.setImage(trayIcon());
-              buildTrayMenu(); // radio 勾选即时刷新
-              broadcast();     // 渲染端换 sprite
-              rlog(`换宠物 · ${id}`);
-            },
-          })),
+          label: t.cattery.replaceAll("{n}", String(inv.fish)),
+          submenu: CAT_PERSONAS.map((persona) => {
+            const loc = currentLocale();
+            const owned = inv.cats?.includes(persona.id) ?? false;
+            const coat = getCoat(persona.coatId);
+            const per = getPersonality(persona.personalityId);
+            return {
+              label: owned
+                ? `${inv.activeCat === persona.id ? "● " : ""}${persona.name[loc]} · ${per.name[loc]}`
+                : `${persona.name[loc]} · ${coat.name[loc]} · ${CAT_PRICE}🐟`,
+              enabled: owned || inv.fish >= CAT_PRICE,
+              click: () => {
+                if (owned) {
+                  inv = { ...inv, activeCat: persona.id };
+                } else {
+                  const bought = buyCat(inv, persona.id, CAT_PRICE);
+                  if (!bought) return;
+                  inv = bought;
+                  rlog(`新猫到家 · ${persona.name["zh-CN"]}（余额 ${inv.fish}）`);
+                }
+                writeInventory(inv);
+                applyCat(); // 性情参数即时生效
+                tray!.setImage(trayIcon());
+                buildTrayMenu();
+                broadcast();
+              },
+            };
+          }),
+        },
+        {
+          label: t.thisCat,
+          click: () => {
+            const persona = activeCat();
+            const loc = currentLocale();
+            const per = getPersonality(persona.personalityId);
+            const coat = getCoat(persona.coatId);
+            win.show();
+            if (machine.pet === "idle") setSizeAnchored(FULL_W, FULL_H);
+            win.webContents.send("pet-hint", {
+              title: `${persona.name[loc]} · ${coat.name[loc]} · ${per.name[loc]}`,
+              cue: persona.backstory[loc],
+            });
+            setTimeout(() => { if (machine.pet === "idle") setSizeAnchored(CAT_W, CAT_H); }, 5200);
+          },
         },
         {
           // 语言切换入口只显示目标语言自名（中文环境见 English / 英文环境见 简体中文）：

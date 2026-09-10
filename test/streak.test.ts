@@ -9,6 +9,7 @@ import {
   localDateKey,
   readDB,
   weekReport,
+  workdayStreak,
   type CheckIn,
 } from "../src/core/streak";
 
@@ -127,5 +128,48 @@ describe("F28 countToday（举牌数据源）", () => {
     expect(countToday(rs, "2026-09-08")).toBe(2);
     expect(countToday(rs, "2026-09-09")).toBe(0);
     expect(countToday([], "2026-09-08")).toBe(0);
+  });
+});
+
+describe("F32 工作日 streak（周末豁免 + 猫咪代守）", () => {
+  const goal = 1; // 每日 1 次即达标
+  const d = (s: string) => s; // YYYY-MM-DD 键
+  test("纯连续工作日（周一~五达标）→ 5；周末天然跳过不断", () => {
+    // 2026-09-07 是周一；07-11 工作日全达标，09-12/13 周末，09-14 周一也达标 → streak 应含周末后
+    const rs = ["2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14"].map((date) => ({ date, exerciseId: "x", ts: 1 }));
+    const r = workdayStreak(rs, "2026-09-14", goal);
+    expect(r.streak).toBe(6); // 周末不计数不断
+    expect(r.guarded).toBe(2); // 09-03/09-04 被「猫咪代守」守护（月度额度内）
+  });
+
+  test("工作日缺席消耗代守（月度 2 天）；额度尽则断", () => {
+    // 09-07..11 达标，09-14 缺（代守1），09-15 缺（代守2），09-16 缺 → 断
+    const rs = ["2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11"].map((date) => ({ date, exerciseId: "x", ts: 1 }));
+    const r = workdayStreak(rs, "2026-09-16", goal);
+    expect(r.streak).toBe(5);
+    expect(r.guarded).toBe(2);
+  });
+
+  test("跨月代守额度独立刷新", () => {
+    // 8 月末用了 2 天代守（08-31 缺、08-28 缺），9 月又有 2 天
+    const rs = ["2026-08-26","2026-08-27","2026-09-01","2026-09-02"].map((date) => ({ date, exerciseId: "x", ts: 1 }));
+    const r = workdayStreak(rs, "2026-09-04", goal);
+    // 洞：09-03（9月守1）、08-31 与 08-28（8月守2）= 3；今天 09-04 未达标免费豁免不算洞
+    expect(r.guarded).toBe(3);
+    expect(r.streak).toBe(4); // 09-01/02 + 08-26/27
+  });
+
+  test("今天未达标不断（从上一工作日起算）", () => {
+    const rs = [{ date: "2026-09-11", exerciseId: "x", ts: 1 }];
+    const r = workdayStreak(rs, "2026-09-14", goal); // 周一还没做
+    expect(r.streak).toBe(1);
+  });
+
+  test("空记录 / 近期从未打卡 → streak 0 且不消耗代守（猫不守不存在的 streak）", () => {
+    expect(workdayStreak([], "2026-09-14", goal)).toEqual({ streak: 0, guarded: 0 });
+    const rs = [{ date: "2026-08-03", exerciseId: "x", ts: 1 }]; // 只在 6 周前打过一次
+    const r = workdayStreak(rs, "2026-09-14", goal);
+    expect(r.streak).toBe(0); // 中间洞太多，代守额度守不住
+    expect(r.guarded).toBe(0); // 断掉的 streak 代守归零
   });
 });
