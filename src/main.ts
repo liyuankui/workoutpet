@@ -313,7 +313,7 @@ function main() {
 
   function roamRecall(why: string): void {
     if (!roam.roaming) return;
-    win.show();
+    win.showInactive();
     roam = { ...roam, roaming: false, nextRoamAt: Date.now() + nextHomeStay() };
     rlog(`回家（${why}）`);
     walkTo(roam.homeX, roam.homeY, 1200);
@@ -532,11 +532,11 @@ function main() {
     tray!.setToolTip(t.tooltip);
     tray!.setContextMenu(
       Menu.buildFromTemplate([
-        { label: t.showHide, click: () => { if (win.isVisible()) win.hide(); else { if (roam.roaming) roamRecall("你叫它回来"); else win.show(); } } },
+        { label: t.showHide, click: () => { if (win.isVisible()) win.hide(); else { if (roam.roaming) roamRecall("你叫它回来"); else win.showInactive(); } } },
         {
           label: t.remindNow,
           click: () => {
-            win.show();
+            win.showInactive();
             handle({ type: "FORCE", now: Date.now() });
           },
         },
@@ -546,7 +546,7 @@ function main() {
             {
               label: t.demoSession,
               click: () => {
-                win.show();
+                win.showInactive();
                 handle({ type: "FORCE", now: Date.now() });
                 handle({ type: "PET", now: Date.now() }); // 直接进会话陪练
               },
@@ -554,7 +554,7 @@ function main() {
             {
               label: t.demoCling,
               click: () => {
-                win.show();
+                win.showInactive();
                 // 演示直入 cling（正常须经连续跳过积累；不写打卡数据）
                 machine = { ...machine, exercise: machine.exercise ?? balancedPick(exercises), pet: "cling", retryPending: false };
                 setSizeAnchored(FULL_W, FULL_H);
@@ -562,16 +562,16 @@ function main() {
                 broadcast();
               },
             },
-            { label: t.demoSkitMouse, click: () => { win.show(); win.webContents.send("pet-skit", { type: "mouse" }); } },
-            { label: t.demoSkitHop, click: () => { win.show(); win.webContents.send("pet-skit", { type: "hop" }); } },
-            { label: t.demoJump, click: () => { win.show(); win.webContents.send("pet-reaction", "jump"); } },
-            { label: t.demoWiggle, click: () => { win.show(); win.webContents.send("pet-reaction", "wiggle"); } },
-            { label: t.demoMeow, click: () => { win.show(); win.webContents.send("pet-reaction", "meow"); } },
-            { label: t.demoRoll, click: () => { win.show(); win.webContents.send("pet-reaction", "roll"); } },
+            { label: t.demoSkitMouse, click: () => { win.showInactive(); win.webContents.send("pet-skit", { type: "mouse" }); } },
+            { label: t.demoSkitHop, click: () => { win.showInactive(); win.webContents.send("pet-skit", { type: "hop" }); } },
+            { label: t.demoJump, click: () => { win.showInactive(); win.webContents.send("pet-reaction", "jump"); } },
+            { label: t.demoWiggle, click: () => { win.showInactive(); win.webContents.send("pet-reaction", "wiggle"); } },
+            { label: t.demoMeow, click: () => { win.showInactive(); win.webContents.send("pet-reaction", "meow"); } },
+            { label: t.demoRoll, click: () => { win.showInactive(); win.webContents.send("pet-reaction", "roll"); } },
             {
               label: t.demoBoard,
               click: () => {
-                win.show();
+                win.showInactive();
                 const b = strings(currentLocale()).bubble;
                 const n = countToday(readDB(DB_PATH).records, localDateKey(Date.now()));
                 const board = goalDaily && goalDaily > 0
@@ -601,7 +601,7 @@ function main() {
                 if (item.kind === "tool") {
                   if (inv2.owned.includes(item.id)) {
                     // 逗猫棒：召回在外的猫 + 开一场蹦跳
-                    if (roam.roaming) roamRecall("逗猫棒！"); else win.show();
+                    if (roam.roaming) roamRecall("逗猫棒！"); else win.showInactive();
                     win.webContents.send("pet-skit", { type: "hop" });
                     rlog("逗猫棒：召回 + 蹦跳");
                   } else {
@@ -631,7 +631,7 @@ function main() {
             try { cfgRaw = JSON.parse(readFileSync(CONFIG_PATH, "utf8")); } catch { cfgRaw = undefined; }
             const r = auditConfig(cfgRaw, allExercises.map((e) => e.id));
             const h = strings(currentLocale()).hints;
-            win.show();
+            win.showInactive();
             if (machine.pet === "idle") setSizeAnchored(FULL_W, FULL_H);
             const title = r.ok ? `✅ ${h.cfgOk}` : `❌ ${r.errors[0] ?? ""}`;
             const cue = r.ok ? (r.warns.length ? `⚠️ ${r.warns[0]}` : "") : r.warns.length ? `⚠️ ${r.warns[0]}` : "";
@@ -659,7 +659,7 @@ function main() {
               clipboard.writeText("See https://github.com/liyuankui/workoutpet — docs/agent-setup-prompt.md");
             }
             // 非模态反馈：猫举气泡告诉用户「粘到哪」
-            win.show();
+            win.showInactive();
             const h = strings(currentLocale()).hints;
             if (machine.pet === "idle") setSizeAnchored(FULL_W, FULL_H); // idle 时扩窗容纳气泡
             win.webContents.send("pet-hint", { title: h.setupCopiedTitle, cue: h.setupCopiedCue });
@@ -705,7 +705,7 @@ function main() {
             const loc = currentLocale();
             const per = getPersonality(persona.personalityId);
             const coat = getCoat(persona.coatId);
-            win.show();
+            win.showInactive();
             if (machine.pet === "idle") setSizeAnchored(FULL_W, FULL_H);
             win.webContents.send("pet-hint", {
               title: `${persona.name[loc]} · ${coat.name[loc]} · ${per.name[loc]}`,
