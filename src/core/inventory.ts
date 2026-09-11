@@ -1,5 +1,7 @@
 // 小鱼干账本（F26）：打卡获得、达标奖励、日上限防肝；购买/穿戴；纯本地 JSON
 export interface Inventory {
+  /** 账本 schema 版本（store 层迁移锚点） */
+  version?: 1;
   fish: number;
   owned: string[];
   outfit: string | null;

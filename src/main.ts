@@ -17,6 +17,7 @@ import { intervalMinutes, validateSchedule, type Schedule } from "./core/schedul
 import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemetry";
 import { computeDragPosition } from "./core/dragging";
 import { appendPetLog } from "./core/petlog";
+import { readStore, writeStore } from "./core/store";
 import { applySkitPersonality, applySkitUniform, createSkit, pickSkit, wantsSkit, type SkitState } from "./core/skit";
 import { parseClingAfterSkips, parseRetryMs } from "./core/behaviorConfig";
 import { currentStepIndex } from "./core/session";
@@ -65,21 +66,17 @@ const CONFIG_PATH = join(HOME, "config.json");
 const DB_PATH = join(HOME, "streak.json");
 const INVENTORY_PATH = join(HOME, "inventory.json");
 function readInventory(): Inventory {
-  try {
-    if (existsSync(INVENTORY_PATH)) {
-      const raw = JSON.parse(readFileSync(INVENTORY_PATH, "utf8")) as Inventory;
-      if (Array.isArray(raw.owned) && Number.isFinite(raw.fish)) return raw;
-    }
-  } catch { /* 损坏回空账本 */ }
-  return emptyInventory();
+  return readStore<Inventory>(INVENTORY_PATH, {
+    validate: (r) => {
+      const x = r as Partial<Inventory>;
+      if (Array.isArray(x.owned) && Number.isFinite(x.fish)) return { version: 1, ...x } as Inventory;
+      return null; // 触发 .corrupt 备份（用户资产不静默清空）
+    },
+    fallback: emptyInventory(),
+  });
 }
 function writeInventory(inv: Inventory): void {
-  try {
-    mkdirSync(HOME, { recursive: true });
-    const tmp = join(HOME, `.tmp-inv-${Date.now()}.json`);
-    writeFileSync(tmp, JSON.stringify(inv, null, 2));
-    renameSync(tmp, INVENTORY_PATH);
-  } catch { /* 账本失败不影响产品 */ }
+  writeStore(INVENTORY_PATH, { version: 1, ...inv });
 }
 
 /** 遥测（opt-out）：关 = 零网络请求；仅 app_open/remind_fired/check_in 三个匿名事件 */
@@ -96,18 +93,15 @@ const tel = (event: string, props: Record<string, unknown> = {}) => {
 };
 
 function readConfig(): AppConfig {
-  try {
-    if (existsSync(CONFIG_PATH)) return { intervalMin: 60, ...JSON.parse(readFileSync(CONFIG_PATH, "utf8")) };
-  } catch { /* 损坏则用默认 */ }
-  return { intervalMin: 60 };
+  const raw = readStore<Record<string, unknown>>(CONFIG_PATH, {
+    validate: (r) => (typeof r === "object" && r !== null && !Array.isArray(r) ? (r as Record<string, unknown>) : null),
+    fallback: {},
+  });
+  return { intervalMin: 60, ...raw };
 }
 
 function saveConfig(patch: Partial<AppConfig>) {
-  const cfg = { ...readConfig(), ...patch };
-  mkdirSync(HOME, { recursive: true });
-  const tmp = join(HOME, `.tmp-config-${Date.now()}.json`);
-  writeFileSync(tmp, JSON.stringify(cfg, null, 2));
-  renameSync(tmp, CONFIG_PATH); // 原子写，与 streak 一致
+  writeStore(CONFIG_PATH, { ...readConfig(), ...patch });
 }
 
 function safeIntervalMin(v: unknown): number {
@@ -154,17 +148,17 @@ function main() {
     else blog("enabledExercises 全部未命中，回退全量动作库");
   }
 
-  // 每日目标（goalDaily）
-  const goalDaily =
-    Number.isFinite(cfg.goalDaily) && Number(cfg.goalDaily) >= 1 && Number(cfg.goalDaily) <= 30
-      ? Number(cfg.goalDaily)
-      : undefined;
+  // 每日目标（goalDaily()）——热读取（审计 L2：当日中途修改即生效，不必重启）
+  const goalDaily = () => {
+    const v = Number(readConfig().goalDaily);
+    return Number.isFinite(v) && v >= 1 && v <= 30 ? v : undefined;
+  };
 
   // 时段调度（schedule）：非法回退 intervalMin
   const schedResult = cfg.schedule ? validateSchedule(cfg.schedule) : { ok: false };
   const schedule: Schedule | null = schedResult.ok ? schedResult.schedule! : null;
   blog(
-    `schedule=${schedule ? `${schedule.windows.length} windows` : "none"} goalDaily=${goalDaily ?? "off"} enabled=${exercises.length}/${allExercises.length}`,
+    `schedule=${schedule ? `${schedule.windows.length} windows` : "none"} goalDaily()=${goalDaily() ?? "off"} enabled=${exercises.length}/${allExercises.length}`,
   );
 
   function currentLocale(): Locale {
@@ -228,7 +222,9 @@ function main() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       const [x, y] = win.getPosition();
-      const [w, h] = win.getSize();
+      const [w] = win.getSize();
+      // 扩窗期（气泡占位 +64）保存按 CAT 基准高换算，否则重启位置漂 64px
+      const h = bubbleExpanded ? CAT_H : win.getSize()[1];
       saveConfig({ brx: x + w, bry: y + h }); // 锚定右下角，重启按 CAT 尺寸恢复不漂移
     }, 500);
   });
@@ -246,11 +242,11 @@ function main() {
   let machine: MachineState = createMachine(exercises, Date.now());
   let clingLastResayAt: number | null = null; // 撒娇软话上次轮换时刻
 
-  // 静默原因节流记录（10 分钟一条）：窗外/隐藏期间留「活着」的痕迹
-  let lastQuietLogAt = 0;
+  // 静默原因节流记录（10 分钟一条，按原因独立节流——审计 L4：互不吞并）
+  const lastQuietLogAt: Record<string, number> = {};
   const quietLog = (now: number, why: string) => {
-    if (now - lastQuietLogAt < 10 * 60_000) return;
-    lastQuietLogAt = now;
+    if (now - (lastQuietLogAt[why] ?? 0) < 10 * 60_000) return;
+    lastQuietLogAt[why] = now;
     rlog(`静默 · ${why}（期间不提醒，恢复后重新计时）`);
   };
 
@@ -314,10 +310,12 @@ function main() {
 
   function roamRecall(why: string): void {
     if (!roam.roaming) return;
-    win.showInactive();
+    const hidden = !win.isVisible();
+    if (!hidden) win.showInactive(); // 用户托盘隐藏时不现身（审计 H2）：静默回位
     roam = { ...roam, roaming: false, nextRoamAt: Date.now() + nextHomeStay() };
-    rlog(`回家（${why}）`);
-    walkTo(roam.homeX, roam.homeY, 1200);
+    rlog(`回家（${why}）${hidden ? " · 保持隐藏" : ""}`);
+    if (!hidden) walkTo(roam.homeX, roam.homeY, 1200);
+    else win.setPosition(roam.homeX, roam.homeY, false);
   }
 
   function broadcast() {
@@ -345,13 +343,13 @@ function main() {
       exercise: view,
       streakDays:
         machine.pet === "happy"
-          ? workdayStreak(readDB(DB_PATH).records, localDateKey(Date.now()), goalDaily).streak
+          ? workdayStreak(readDB(DB_PATH).records, localDateKey(Date.now()), goalDaily()).streak
           : 0, // streak 只在 happy 气泡需要，避免每秒读盘
       locale,
       sessionRemainSec,
       sessionStep,
       todayCount,
-      todayGoal: goalDaily,
+      todayGoal: goalDaily(),
       outfit: readInventory().outfit,
     });
   }
@@ -376,15 +374,16 @@ function main() {
         ts: Date.now(),
         durationSec: result.checkedInSec ?? undefined, // F25 实际跟做秒数（完整率度量）
       });
-      const full = machine.exercise ? result.checkedInSec === machine.exercise.durationSec : false;
+      const full = machine.exercise ? (result.checkedInSec ?? 0) >= machine.exercise.durationSec : false; // 审计 M4：>= 防随机 off-by-one
       rlog(`打卡 ✓ ${result.checkedIn.id} · 跟做 ${result.checkedInSec}s${full ? "（完整）" : ""}`);
       // F26/F32 小鱼干：打卡 +1，达标日 +2（每日一次）；完整跟做再 +1；日上限 8
       const todayKey = localDateKey(Date.now());
-      const goalMet = !!goalDaily && countToday(readDB(DB_PATH).records, todayKey) >= goalDaily;
+      const gd = goalDaily();
+      const goalMet = !!gd && countToday(readDB(DB_PATH).records, todayKey) >= gd;
       let invEarn = earnOnCheckIn(readInventory(), todayKey, goalMet).inv;
       if (full) invEarn = earnBonus(invEarn, todayKey).inv; // 完整跟做奖励（H2 胡萝卜）
       // 工作日 streak 里程碑（3/7/14/30 → 3/5/10/20，一次性，独立于日上限）
-      const ws = workdayStreak(readDB(DB_PATH).records, todayKey, goalDaily);
+      const ws = workdayStreak(readDB(DB_PATH).records, todayKey, goalDaily());
       const ms = claimMilestone(invEarn, ws.streak);
       invEarn = ms.inv;
       writeInventory(invEarn);
@@ -426,22 +425,34 @@ function main() {
     if (schedule) {
       const iv = intervalMinutes(schedule, new Date(now));
       if (iv === null) {
-        if (machine.pet === "idle") {
-          machine = { ...machine, lastCycleAt: now }; // 静默期顺延，出窗即恢复
-          if (!roam.roaming && !walking) roamOut("下班了，在外面过自己的日子"); // 静默期默认在外
+        // 静默期「先收敛再冻结」（审计 H1/M2/M3）：正事走完，不僵屏过夜
+        if (machine.pet !== "idle") {
+          const prev = machine.pet;
+          handle({ type: "SLEEP", now }); // remind 超时语义收编：和解下班，skip/retry 全清（H4：次日不补账）
+          rlog(`静默期收敛 · ${prev} → idle（下班了，不催了）`);
         }
-        quietLog(now, "schedule 窗外（猫在外面玩）");
+        machine = { ...machine, lastCycleAt: now, retryPending: false }; // 跨夜清顺延（H4：次日重开新轮）
+        if (!roam.roaming && !walking) roamOut("下班了，在外面过自己的日子");
+        quietLog(now, "schedule 窗外");
         return;
       }
-      if (roam.roaming && machine.pet === "idle" && !walking) roamRecall("开工了，回岗位");
+      if (roam.roaming && machine.pet === "idle" && !walking && win.isVisible()) roamRecall("开工了，回岗位");
       cfgNow = { ...machineCfg, intervalMs: iv * 60_000 };
+    }
+
+    // 托盘隐藏优先（审计 H2/M1）：用户藏起 = 全态冻结（remind 不超时不记跳过、会话倒数暂停、cling 不轮换）
+    // （漫游在外的 hide 不算——猫在外面也惦记着时间，F21 语义）
+    if (!win.isVisible() && !roam.roaming) {
+      if (machine.pet === "idle") machine = { ...machine, lastCycleAt: now };
+      quietLog(now, "猫被托盘隐藏（全态冻结）");
+      return;
     }
     // F24 顺延：retryPending 时下一次提醒改用 retryMs（8 分钟级），打卡后自动回常规轮转
     cfgNow = { ...cfgNow, intervalMs: effectiveIntervalMs(machine, cfgNow.intervalMs, retryMs) };
 
     // F21 漫游驱动：仅 idle 在家时；提醒临近不出门；到期前 30s 或归期召回
     const remindDueAt = machine.pet === "idle" ? machine.lastCycleAt + cfgNow.intervalMs : null;
-    if (machine.pet === "idle" && !walking) {
+    if (machine.pet === "idle" && !walking && win.isVisible()) {
       if (roam.roaming && shouldRecall(roam, now, remindDueAt)) {
         roamRecall(remindDueAt !== null && remindDueAt - now <= 60_000 ? "提醒要来了，跑回去找你" : "玩够了");
       } else if (!roam.roaming && wantsRoam(roam, now)) {
@@ -471,14 +482,7 @@ function main() {
         clingLastResayAt = now;
         broadcast();
       }
-      return;
-    }
-    // 猫被托盘隐藏期间不打扰：顺延计时，重新显示后不补弹
-    // （漫游在外的 hide 不算——猫在外面也惦记着时间，F21 语义）
-    if (machine.pet === "idle" && !win.isVisible() && !roam.roaming) {
-      machine = { ...machine, lastCycleAt: now };
-      quietLog(now, "猫被托盘隐藏");
-      return;
+      return; // cling 无 TICK 转移（SLEEP/FORCE/点猫为出口）
     }
     handle({ type: "TICK", now }, cfgNow);
     if (machine.pet === "session") broadcast(); // 会话陪练：每秒刷新倒数/步骤气泡
@@ -488,14 +492,23 @@ function main() {
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
   // F34 气泡占位：idle 小窗扩高容纳气泡（锚右下，向上扩）；FULL 态足够高不扩
   let bubbleExpanded = false;
+  let bubbleCollapseTimer: ReturnType<typeof setTimeout> | undefined;
   ipcMain.on("pet-bubble", (_e, on: boolean) => {
     const h = win.getSize()[1];
-    if (on && !bubbleExpanded && h === CAT_H) {
-      setSizeAnchored(CAT_W, CAT_H + 64);
-      bubbleExpanded = true;
-    } else if (!on && bubbleExpanded) {
-      setSizeAnchored(CAT_W, CAT_H);
-      bubbleExpanded = false;
+    if (on) {
+      clearTimeout(bubbleCollapseTimer); // 快闪气泡（喵～0.9s）防抖：收窗前 300ms 内又亮则不收
+      if (!bubbleExpanded && h === CAT_H) {
+        setSizeAnchored(CAT_W, CAT_H + 64);
+        bubbleExpanded = true;
+      }
+    } else if (bubbleExpanded) {
+      clearTimeout(bubbleCollapseTimer);
+      bubbleCollapseTimer = setTimeout(() => {
+        if (!bubbleExpanded) return;
+        bubbleExpanded = false;
+        // 气泡若仍亮（cling 轮换竞态）不收
+        setSizeAnchored(CAT_W, CAT_H);
+      }, 300);
     }
   });
   ipcMain.on("pet-ready", () => broadcast());
@@ -527,7 +540,13 @@ function main() {
     const per = getPersonality(persona.personalityId);
     applyRoamPersonality(per.roam);
     applySkitPersonality(per.skitGapMinMs, per.skitGapMaxMs);
-    machineCfg = { ...machineCfg, clingAfterSkips: per.clingAfterSkips }; // 性情 > config（F32 设计）
+    // 审计 M5：config 显式设置 clingAfterSkips（含 0=关闭）优先于性情缺省
+    machineCfg = {
+      ...machineCfg,
+      clingAfterSkips: readConfig().clingAfterSkips !== undefined ? parseClingAfterSkips(readConfig()) : per.clingAfterSkips,
+    };
+    // 换猫和解：正处 cling 的旧猫随交接下班（skipStreak 清零）
+    if (machine.pet === "cling") handle({ type: "SLEEP", now: Date.now() });
     rlog(`当前猫 · ${persona.name["zh-CN"]}（${per.name["zh-CN"]}）`);
   };
   applyCat();
@@ -540,7 +559,50 @@ function main() {
   };
   tray = new Tray(trayIcon());
 
-  /** F34e 检查更新：比对 GitHub 最新 release（不自动升级——保持 brew/手动节奏） */
+  /** 逐段语义化版本比较（审计修复：字符串比较 0.10.x vs 0.9.x 会误判） */
+  function compareVersions(a: string, b: string): number {
+    const pa = a.split(".").map(Number);
+    const pb = b.split(".").map(Number);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+      if (d) return d;
+    }
+    return 0;
+  }
+
+  async function fetchTimeout(url: string, ms: number): Promise<Response> {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), ms);
+    return fetch(url, { signal: ctrl.signal, headers: { "User-Agent": "micro-pet" } });
+  }
+
+  /** 最新版本三源回退（UPDATE-RESEARCH.md）：GitHub 直连 → gh-proxy 透传 → jsdelivr 读 tap cask */
+  async function fetchLatestVersion(): Promise<string | null> {
+    const sources: Array<() => Promise<string | null>> = [
+      async () => {
+        const r = await fetchTimeout("https://api.github.com/repos/liyuankui/workoutpet/releases/latest", 4000);
+        return String(((await r.json()) as { tag_name?: string }).tag_name ?? "").replace(/^v/, "") || null;
+      },
+      async () => {
+        const r = await fetchTimeout("https://gh-proxy.com/https://api.github.com/repos/liyuankui/workoutpet/releases/latest", 5000);
+        return String(((await r.json()) as { tag_name?: string }).tag_name ?? "").replace(/^v/, "") || null;
+      },
+      async () => {
+        const r = await fetchTimeout("https://cdn.jsdelivr.net/gh/liyuankui/homebrew-tap@main/Casks/micro-pet.rb", 5000);
+        const m = (await r.text()).match(/version "([\d.]+)"/);
+        return m?.[1] ?? null;
+      },
+    ];
+    for (const src of sources) {
+      try {
+        const v = await src();
+        if (v) return v;
+      } catch { /* 换下一源 */ }
+    }
+    return null;
+  }
+
+  /** F34e 检查更新：三源回退比对（不自动升级——保持 brew/手动节奏） */
   async function checkUpdate(): Promise<void> {
     const t = strings(currentLocale()).tray;
     const show = (title: string, cue: string) => {
@@ -549,23 +611,16 @@ function main() {
       win.webContents.send("pet-hint", { title, cue });
       setTimeout(() => { if (machine.pet === "idle") setSizeAnchored(CAT_W, CAT_H); }, 4600);
     };
-    try {
-      const ctrl = new AbortController();
-      setTimeout(() => ctrl.abort(), 5000);
-      const res = await fetch("https://api.github.com/repos/liyuankui/workoutpet/releases/latest", {
-        signal: ctrl.signal,
-        headers: { "User-Agent": "micro-pet" },
-      });
-      const tag = ((await res.json()) as { tag_name?: string }).tag_name ?? "?";
-      const latest = tag.replace(/^v/, "");
-      const cur = APP_VERSION;
-      const newer = latest > cur; // 语义化版本字符串比较（x.y.z 逐段可比）
-      show(newer ? fmt(t.updateAvailable, { v: latest }) : t.upToDate, newer ? "brew upgrade --cask micro-pet" : `v${cur}`);
-      rlog(`检查更新：本地 v${cur} / 最新 v${latest}${newer ? " → 有新版" : "，已最新"}`);
-    } catch (e) {
-      show(t.updateCheckFailed, "");
-      rlog(`检查更新失败：${String(e)}`);
+    const latest = await fetchLatestVersion();
+    const cur = APP_VERSION;
+    if (!latest) {
+      show(t.updateCheckFailed, "brew info --cask micro-pet");
+      rlog("检查更新失败：三源（GitHub/gh-proxy/jsdelivr）均不可达");
+      return;
     }
+    const newer = compareVersions(latest, cur) > 0;
+    show(newer ? fmt(t.updateAvailable, { v: latest }) : t.upToDate, newer ? "brew upgrade --cask micro-pet" : `v${cur}`);
+    rlog(`检查更新：本地 v${cur} / 最新 v${latest}${newer ? " → 有新版" : "，已最新"}`);
   }
 
   function buildTrayMenu() {
@@ -580,6 +635,7 @@ function main() {
         {
           label: t.remindNow,
           click: () => {
+            if (roam.roaming) roamRecall("你叫它提醒你"); // 审计 H3：漫游中先召回，否则弹在屏外
             win.showInactive();
             handle({ type: "FORCE", now: Date.now() });
           },
@@ -618,10 +674,11 @@ function main() {
                 win.showInactive();
                 const b = strings(currentLocale()).bubble;
                 const n = countToday(readDB(DB_PATH).records, localDateKey(Date.now()));
-                const board = goalDaily && goalDaily > 0
-                  ? (n >= goalDaily ? b.goalMet : fmt(b.todayGoalN, { n, m: goalDaily }))
+                const gd = goalDaily();
+                const board = gd && gd > 0
+                  ? (n >= gd ? b.goalMet : fmt(b.todayGoalN, { n, m: gd }))
                   : fmt(b.todayN, { n });
-                const cue = fmt(strings(currentLocale()).bubble.good, { n: workdayStreak(readDB(DB_PATH).records, localDateKey(Date.now()), goalDaily).streak });
+                const cue = fmt(strings(currentLocale()).bubble.good, { n: workdayStreak(readDB(DB_PATH).records, localDateKey(Date.now()), goalDaily()).streak });
                 if (machine.pet === "idle") setSizeAnchored(FULL_W, FULL_H);
                 win.webContents.send("pet-hint", { title: board, cue });
                 setTimeout(() => { if (machine.pet === "idle") setSizeAnchored(CAT_W, CAT_H); }, 4600);
@@ -689,7 +746,7 @@ function main() {
           label: t.copyReport,
           click: () =>
             clipboard.writeText(
-              renderReport(readDB(DB_PATH), exercises, Date.now(), undefined, currentLocale(), goalDaily),
+              renderReport(readDB(DB_PATH), exercises, Date.now(), undefined, currentLocale(), goalDaily()),
             ),
         },
         {

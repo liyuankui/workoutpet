@@ -150,8 +150,11 @@ export function workdayStreak(
   let streak = 0;
   let guarded = 0;
   const guardUsed = new Map<string, number>(); // YYYY-MM → 已代守数
+  // 回溯下界：首次使用日（审计 L3——安装前的工作日不消耗代守，防首日虚高）
+  const firstDay = records.length > 0 ? records.reduce((min, r) => (r.date < min ? r.date : min), records[0]!.date) : "";
   // 最多回溯 400 天（防脏数据死循环）
   for (let i = 0; i < 400; i++) {
+    if (firstDay && fmtKey(cursor) < firstDay) break;
     if (!isWorkday(cursor)) {
       cursor.setDate(cursor.getDate() - 1);
       continue;

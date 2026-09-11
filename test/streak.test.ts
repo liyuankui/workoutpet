@@ -139,7 +139,7 @@ describe("F32 工作日 streak（周末豁免 + 猫咪代守）", () => {
     const rs = ["2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14"].map((date) => ({ date, exerciseId: "x", ts: 1 }));
     const r = workdayStreak(rs, "2026-09-14", goal);
     expect(r.streak).toBe(6); // 周末不计数不断
-    expect(r.guarded).toBe(2); // 09-03/09-04 被「猫咪代守」守护（月度额度内）
+    expect(r.guarded).toBe(0); // 审计 L3 后：回溯止于首次打卡日（09-07），09-03/04 不再消耗代守
   });
 
   test("工作日缺席消耗代守（月度 2 天）；额度尽则断", () => {

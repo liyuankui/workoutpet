@@ -195,16 +195,17 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
+let bubbleOn = false;
 function showBubble(title, cue) {
   titleEl.textContent = title;
   cueEl.textContent = cue ?? "";
   cueEl.style.display = cue ? "" : "none";
   bubble.classList.add("show");
-  microPet.bubbleBox(true); // 通知主进程扩窗（idle 小窗时才生效）
+  if (!bubbleOn) { bubbleOn = true; microPet.bubbleBox(true); } // 通知主进程扩窗（idle 小窗时才生效；已开不重发）
 }
 function hideBubble() {
   bubble.classList.remove("show");
-  microPet.bubbleBox(false);
+  if (bubbleOn) { bubbleOn = false; microPet.bubbleBox(false); }
 }
 
 // 演示菜单：直发反应（绕过节流——手动触发测试用）
@@ -230,6 +231,7 @@ microPet.onState((msg) => {
   if (msg.pool) personaPool = msg.pool;
   // 走位中（外出/跑回）：播跑动帧，状态切换冻结（bob 不适用）
   const shown = msg.walking ? "walk" : msg.pet;
+  if (shown !== "idle" && skit) skit = null; // 提醒/走位/会话等正戏优先，剧场即让位
   if (msg.spriteId && msg.spriteId !== SPRITE_ID) {
     // 换宠物：重取 sprite 集（网格/色板/帧全换，动画状态照常）
     ({ PALETTE, GRID, FRAMES, SPRITE_ID } = microPet.sprites(msg.spriteId));

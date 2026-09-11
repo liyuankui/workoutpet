@@ -224,3 +224,36 @@ describe("F25 会话陪练（session）", () => {
     expect(r.checkedInSec).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe("F35 审计修复（SLEEP/封顶/FORCE 拒会话）", () => {
+  test("SLEEP：任意态归 idle，skipStreak/retryPending 清零（静默收敛/换猫和解）", () => {
+    let m = createMachine(ex, 0, fixedRand);
+    m = dispatch(m, { type: "FORCE", now: 1_000 }, { ...cfg, retryOnTimeout: true, clingAfterSkips: 2 }, ex, fixedRand).state;
+    m = { ...m, skipStreak: 2, retryPending: true };
+    const r = dispatch(m, { type: "SLEEP", now: 99_000 }, cfg, ex, fixedRand);
+    expect(r.state.pet).toBe("idle");
+    expect(r.state.exercise).toBeNull();
+    expect(r.state.skipStreak).toBe(0);
+    expect(r.state.retryPending).toBe(false);
+    expect(r.state.lastCycleAt).toBe(99_000);
+  });
+
+  test("会话秒数封顶：跨夜僵死 tick 自动收工记 dur（不再 54000s 脏值），提前结束记实际", () => {
+    let m = createMachine(ex, 0, fixedRand);
+    m = dispatch(m, { type: "FORCE", now: 1_000 }, cfg, ex, fixedRand).state;
+    m = dispatch(m, { type: "PET", now: 2_000 }, cfg, ex, fixedRand).state; // session
+    const dur = m.exercise!.durationSec;
+    const overnight = dispatch(m, { type: "TICK", now: 2_000 + 86_400_000 }, cfg, ex, fixedRand);
+    expect(overnight.checkedInSec).toBe(dur); // 封顶
+    const early = dispatch(m, { type: "PET", now: 2_000 + 12_000 }, cfg, ex, fixedRand);
+    expect(early.checkedInSec).toBe(12); // 提前不受影响
+  });
+
+  test("FORCE 在 session 中被拒（会话不静默作废）", () => {
+    let m = createMachine(ex, 0, fixedRand);
+    m = dispatch(m, { type: "FORCE", now: 1_000 }, cfg, ex, fixedRand).state;
+    m = dispatch(m, { type: "PET", now: 2_000 }, cfg, ex, fixedRand).state;
+    const r = dispatch(m, { type: "FORCE", now: 3_000 }, cfg, ex, fixedRand);
+    expect(r.state.pet).toBe("session");
+  });
+});

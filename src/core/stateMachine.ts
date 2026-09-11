@@ -52,7 +52,9 @@ export interface MachineState {
 export type PetEvent =
   | { type: "TICK"; now: number }
   | { type: "PET"; now: number }
-  | { type: "FORCE"; now: number }; // Tray「立刻提醒」/ 测试用
+  | { type: "FORCE"; now: number } // Tray「立刻提醒」/ 测试用
+  /** 收敛休眠（H1/M2）：静默期进入/换猫和解——任意态归 idle，顺延与跳过一并清零（明日新轮） */
+  | { type: "SLEEP"; now: number };
 
 export interface DispatchResult {
   state: MachineState;
@@ -102,7 +104,9 @@ export function dispatch(
   /** 会话收尾：打卡 + happy（自动到时或提前点——动了就好，都算完成） */
   const finishSession = (now: number): DispatchResult => {
     const done = s.exercise!;
-    const sec = Math.max(1, Math.round((now - s.sessionStartedAt) / 1000));
+    // 秒数封顶动作时长（M3/M4）：自动收工恰达 dur；跨夜僵死的会话也不产出 54000s 脏值
+    const durSec = done.durationSec;
+    const sec = Math.max(1, Math.min(Math.round((now - s.sessionStartedAt) / 1000), durSec));
     s.pet = "happy";
     s.exercise = done;
     s.happyStartedAt = now;
@@ -111,8 +115,17 @@ export function dispatch(
     return { state: s, checkedIn: done, checkedInSec: sec, wiggle: false };
   };
 
+  if (ev.type === "SLEEP") {
+    s.pet = "idle";
+    s.exercise = null;
+    s.lastCycleAt = ev.now;
+    s.skipStreak = 0;
+    s.retryPending = false;
+    return none;
+  }
+
   if (ev.type === "FORCE") {
-    if (s.pet === "remind") return none; // 提醒中不重复触发
+    if (s.pet === "remind" || s.pet === "session") return none; // 提醒/会话中不重复触发（L5：会话不静默作废）
     s.pet = "remind";
     s.exercise = pick(exercises, rand);
     s.remindStartedAt = ev.now;
