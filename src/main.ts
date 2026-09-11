@@ -661,6 +661,7 @@ function main() {
                     if (toggled) { writeInventory(toggled); inv2 = toggled; rlog(`穿戴切换 ${item.id} → ${toggled.outfit ?? "素身"}`); }
                   }
                 }
+                inv = inv2; // 回写闭包缓存（单源真相：修双源 bug——猫舍/余额曾读旧值）
                 buildTrayMenu(); // 余额/拥有态即时刷新
                 broadcast();     // 装扮即时上身
               },
