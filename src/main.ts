@@ -632,14 +632,14 @@ function main() {
         {
           label: t.shop.replaceAll("{n}", String(readInventory().fish)),
           submenu: SHOP.map((item) => {
-            const inv = readInventory();
-            const owned = inv.owned.includes(item.id);
+            const invNow = readInventory(); // 菜单构建快照（外层闭包 inv 是唯一真相源）
+            const owned = invNow.owned.includes(item.id);
             const label = item.kind === "outfit"
-              ? `${owned ? (inv.outfit === item.id ? "● " : "") : ""}${t.shopNames[item.id as keyof typeof t.shopNames]}${owned ? "" : ` · ${item.price}🐟`}`
+              ? `${owned ? (invNow.outfit === item.id ? "● " : "") : ""}${t.shopNames[item.id as keyof typeof t.shopNames]}${owned ? "" : ` · ${item.price}🐟`}`
               : `${t.shopNames[item.id as keyof typeof t.shopNames]}${owned ? "" : ` · ${item.price}🐟`}`;
             return {
               label,
-              enabled: owned || inv.fish >= item.price,
+              enabled: owned || invNow.fish >= item.price,
               click: () => {
                 let inv2 = readInventory();
                 if (item.kind === "tool") {
