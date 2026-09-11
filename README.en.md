@@ -43,7 +43,8 @@ Read the docs directly: [Install](docs/agent-install-prompt.en.md) · [Setup](do
 - **Click any other time = random reaction**: wiggle / jump / meow~ / roll (500ms throttle)
 - Bilingual (zh-CN / en): follows your system language, switchable from the tray
 - **Cat universe** (v0.11): 6 cats = 7 coats (cream/void/snow/cow/calico/blue/siamese) × 4 personalities (clingy/playful/calm/timid) × personas with backstories — personality genuinely changes behavior (roam frequency, clingy threshold, skit taste, dialogue pools); adopt new cats with fish at the tray "Cattery" (8🐟 flat), view persona card via "About this cat"
-- **It wanders off on its own**: after a while at home it strolls off-screen (3–15 min), and runs back to you when a reminder is due; during silent hours it's simply out living its life
+- **It wanders off on its own**: after a while at home it strolls off-screen (3–15 min), and runs back to you when a reminder is due
+- **Off-hours travel**: with 2 fish (a bento) it heads off on a trip during silent hours — and comes back holding a pixel postcard (browse them via tray "Travel album"); destinations follow personality: playful cats chase rare faraway spots, timid ones just visit the next desk or the print room; travels survive restarts
 - **Little skits at home**: occasionally it performs — chasing a mouse (chase, pounce, miss, plead) or happy hops; 8s each, 2-3 per hour, never when a reminder is due
 - Tray shows the version up top; "Check for updates" compares against the latest GitHub release (bubble notice, no auto-upgrade)
 - Weekly report: tray "Copy Weekly Report"; data lives in `~/.micro-pet/streak.json`

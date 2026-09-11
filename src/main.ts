@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, clipboard, nativeImage, screen, ipcMain } from "electron";
+import { app, BrowserWindow, Tray, Menu, clipboard, nativeImage, screen, ipcMain, shell } from "electron";
 import { join, dirname } from "node:path";
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -18,6 +18,7 @@ import { readOrCreateUid, sendTelemetry, telemetryEnabled } from "./core/telemet
 import { computeDragPosition } from "./core/dragging";
 import { appendPetLog } from "./core/petlog";
 import { readStore, writeStore } from "./core/store";
+import { BENTO_PRICE, canAffordTravel, pickSpot, SPOTS, type TravelState } from "./core/travel";
 import { applySkitPersonality, applySkitUniform, createSkit, pickSkit, wantsSkit, type SkitState } from "./core/skit";
 import { parseClingAfterSkips, parseRetryMs } from "./core/behaviorConfig";
 import { currentStepIndex } from "./core/session";
@@ -298,24 +299,62 @@ function main() {
   if (process.env.MICROPET_SKIT_UNIFORM_MS) applySkitUniform(Number(process.env.MICROPET_SKIT_UNIFORM_MS));
   let skit: SkitState = createSkit(Date.now());
 
-  function roamOut(why: string): void {
+  // F33 旅行：静默期出远门（带便当）；归来举明信片；落盘可恢复（重启不丢、便当不白扣）
+  const TRAVEL_PATH = join(HOME, "travel.json");
+  const readTravel = (): TravelState =>
+    readStore<TravelState>(TRAVEL_PATH, {
+      validate: (r) => (typeof (r as TravelState)?.spotId === "string" || (r as TravelState)?.spotId === null ? (r as TravelState) : null),
+      fallback: { spotId: null },
+    });
+  const writeTravel = (t: TravelState) => writeStore(TRAVEL_PATH, t);
+  let travel: TravelState = readTravel();
+  // 托盘隐藏（用户意图）与漫游自藏（猫自己的 hide）语义分离——审计 H2 曾混用 isVisible 误伤漫游召回
+  let trayHidden = false;
+  const POSTCARDS_DIR = join(HOME, "postcards");
+
+  function roamOut(why: string, spotId: string | null = null): void {
     if (roam.roaming || walking || machine.pet !== "idle") return;
+    travel = { spotId };
+    writeTravel(travel);
     const [x, y] = win.getPosition();
     roam = { ...roam, roaming: true, homeX: x, homeY: y, backAt: Date.now() + nextOutDuration() };
     const wa2 = screen.getPrimaryDisplay().workArea;
     const offX = Math.random() < 0.5 ? wa2.x - CAT_W - 12 : wa2.x + wa2.width + 12;
-    rlog(`出去玩（${why}，${Math.round((roam.backAt - Date.now()) / 60000)} 分钟内回）`);
+    const spot = spotId ? SPOTS.find((v) => v.id === spotId) : null;
+    rlog(`出去玩（${spot ? `带便当去${spot.name["zh-CN"]}旅行` : why}，${Math.round((roam.backAt - Date.now()) / 60000)} 分钟内回）`);
     walkTo(offX, y, 1200, () => win.hide());
+  }
+
+/** F33 旅行归来：请 renderer 作明信片落盘 + 举气泡（漫游召回与启动恢复两路共用） */
+  function arriveFromTravel(): void {
+    if (!travel.spotId) return;
+    const spot = SPOTS.find((v) => v.id === travel.spotId);
+    travel = { spotId: null };
+    writeTravel(travel);
+    if (!spot) return;
+    win.webContents.send("pet-postcard-render", { spot, spriteId: getPet(inv.activeCat).id });
+    const loc = currentLocale();
+    const b = strings(loc).bubble;
+    const cue = `${spot.souvenir[loc]} · ${spot.rare ? "✨" : ""}`;
+    setTimeout(() => {
+      if (machine.pet === "idle" && win.isVisible()) {
+        setSizeAnchored(FULL_W, FULL_H);
+        win.webContents.send("pet-hint", { title: fmt(b.backFromTrip, { spot: spot.name[loc] }), cue });
+        setTimeout(() => { if (machine.pet === "idle") setSizeAnchored(CAT_W, CAT_H); }, 4600);
+      }
+    }, 1400); // 走回原位后再举牌
+    rlog(`旅行归来 · ${spot.name["zh-CN"]}（带回${spot.souvenir["zh-CN"]}）`);
   }
 
   function roamRecall(why: string): void {
     if (!roam.roaming) return;
-    const hidden = !win.isVisible();
-    if (!hidden) win.showInactive(); // 用户托盘隐藏时不现身（审计 H2）：静默回位
+    const hidden = trayHidden;
+    if (!hidden) win.showInactive(); // 用户托盘隐藏时不现身（审计 H2）：静默回位；漫游召回正常现身
     roam = { ...roam, roaming: false, nextRoamAt: Date.now() + nextHomeStay() };
     rlog(`回家（${why}）${hidden ? " · 保持隐藏" : ""}`);
     if (!hidden) walkTo(roam.homeX, roam.homeY, 1200);
     else win.setPosition(roam.homeX, roam.homeY, false);
+    arriveFromTravel();
   }
 
   function broadcast() {
@@ -432,17 +471,27 @@ function main() {
           rlog(`静默期收敛 · ${prev} → idle（下班了，不催了）`);
         }
         machine = { ...machine, lastCycleAt: now, retryPending: false }; // 跨夜清顺延（H4：次日重开新轮）
-        if (!roam.roaming && !walking) roamOut("下班了，在外面过自己的日子");
+        if (!roam.roaming && !walking) {
+          // F33：出得起远门（便当 2 鱼）且性情愿意 → 旅行；否则普通漫游
+          const spot = canAffordTravel(inv.fish) ? pickSpot(getPersonality(activeCat().personalityId).id) : null;
+          if (spot) {
+            inv = { ...inv, fish: inv.fish - BENTO_PRICE };
+            writeInventory(inv);
+            roamOut("下班了", spot.id);
+          } else {
+            roamOut("下班了，在外面过自己的日子");
+          }
+        }
         quietLog(now, "schedule 窗外");
         return;
       }
-      if (roam.roaming && machine.pet === "idle" && !walking && win.isVisible()) roamRecall("开工了，回岗位");
+      if (roam.roaming && machine.pet === "idle" && !walking && !trayHidden) roamRecall("开工了，回岗位");
       cfgNow = { ...machineCfg, intervalMs: iv * 60_000 };
     }
 
     // 托盘隐藏优先（审计 H2/M1）：用户藏起 = 全态冻结（remind 不超时不记跳过、会话倒数暂停、cling 不轮换）
     // （漫游在外的 hide 不算——猫在外面也惦记着时间，F21 语义）
-    if (!win.isVisible() && !roam.roaming) {
+    if (trayHidden && !roam.roaming) {
       if (machine.pet === "idle") machine = { ...machine, lastCycleAt: now };
       quietLog(now, "猫被托盘隐藏（全态冻结）");
       return;
@@ -452,7 +501,7 @@ function main() {
 
     // F21 漫游驱动：仅 idle 在家时；提醒临近不出门；到期前 30s 或归期召回
     const remindDueAt = machine.pet === "idle" ? machine.lastCycleAt + cfgNow.intervalMs : null;
-    if (machine.pet === "idle" && !walking && win.isVisible()) {
+    if (machine.pet === "idle" && !walking && !trayHidden) {
       if (roam.roaming && shouldRecall(roam, now, remindDueAt)) {
         roamRecall(remindDueAt !== null && remindDueAt - now <= 60_000 ? "提醒要来了，跑回去找你" : "玩够了");
       } else if (!roam.roaming && wantsRoam(roam, now)) {
@@ -490,6 +539,12 @@ function main() {
 
   // ---------- IPC ----------
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
+  ipcMain.on("pet-postcard-data", (_e, dataUrl: string) => {
+    try {
+      mkdirSync(POSTCARDS_DIR, { recursive: true });
+      writeFileSync(join(POSTCARDS_DIR, `postcard-${Date.now()}.png`), Buffer.from(dataUrl.split(",")[1]!, "base64"));
+    } catch { /* 明信片落盘失败不影响产品 */ }
+  });
   // F34 气泡占位：idle 小窗扩高容纳气泡（锚右下，向上扩）；FULL 态足够高不扩
   let bubbleExpanded = false;
   let bubbleCollapseTimer: ReturnType<typeof setTimeout> | undefined;
@@ -631,7 +686,7 @@ function main() {
         { label: `v${APP_VERSION}`, enabled: false },
         { label: t.checkUpdate, click: () => void checkUpdate() },
         { type: "separator" },
-        { label: t.showHide, click: () => { if (win.isVisible()) win.hide(); else { if (roam.roaming) roamRecall("你叫它回来"); else win.showInactive(); } } },
+        { label: t.showHide, click: () => { if (win.isVisible()) { win.hide(); trayHidden = true; } else { trayHidden = false; if (roam.roaming) roamRecall("你叫它回来"); else win.showInactive(); } } },
         {
           label: t.remindNow,
           click: () => {
@@ -719,11 +774,19 @@ function main() {
                   }
                 }
                 inv = inv2; // 回写闭包缓存（单源真相：修双源 bug——猫舍/余额曾读旧值）
-                buildTrayMenu(); // 余额/拥有态即时刷新
+              
+  buildTrayMenu(); // 余额/拥有态即时刷新
                 broadcast();     // 装扮即时上身
               },
             };
           }),
+        },
+        {
+          label: t.travelAlbum,
+          click: () => {
+            mkdirSync(POSTCARDS_DIR, { recursive: true });
+            void shell.openPath(POSTCARDS_DIR);
+          },
         },
         {
           label: t.validateConfig,
@@ -794,7 +857,8 @@ function main() {
                 writeInventory(inv);
                 applyCat(); // 性情参数即时生效
                 tray!.setImage(trayIcon());
-                buildTrayMenu();
+              
+  buildTrayMenu();
                 broadcast();
               },
             };
@@ -836,11 +900,27 @@ function main() {
 
   function setLocale(l: Locale) {
     saveConfig({ locale: l });
-    buildTrayMenu(); // 菜单即时换语言
+  
+  buildTrayMenu(); // 菜单即时换语言
     broadcast();     // 气泡/渲染端跟随
   }
+
   buildTrayMenu();
 
+  // F33 启动恢复：在途旅行（重启前已扣便当）——窗外继续在途，窗内立即归来举牌
+  if (travel.spotId) {
+    const stillSilent = schedule ? intervalMinutes(schedule, new Date()) === null : false;
+    const spot = SPOTS.find((v) => v.id === travel.spotId);
+    if (stillSilent) {
+      rlog(`恢复在途旅行 · ${spot?.name["zh-CN"] ?? "?"}`);
+      roam = { ...roam, roaming: true, backAt: Date.now() + nextOutDuration(), homeX: win.getPosition()[0], homeY: win.getPosition()[1] };
+      win.hide(); // 仍在旅途
+    } else {
+      rlog(`旅行归来（恢复）· ${spot?.name["zh-CN"] ?? "?"}`);
+      // 等渲染端 ipc 监听就绪再归来（过早 send 会丢——明信片链依赖 renderer）
+      setTimeout(() => arriveFromTravel(), 2500);
+    }
+  }
   console.log(
     `[micro-pet] alive · interval=${Math.round(machineCfg.intervalMs / 60000)}min · locale=${currentLocale()} · db=${DB_PATH}`,
   );

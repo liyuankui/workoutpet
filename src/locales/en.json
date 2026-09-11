@@ -30,7 +30,8 @@
     "checkUpdate": "Check for updates",
     "updateAvailable": "v{v} is out! brew upgrade",
     "upToDate": "Up to date ✓",
-    "updateCheckFailed": "Update check failed (network?)"
+    "updateCheckFailed": "Update check failed (network?)",
+    "travelAlbum": "🖼 Travel album"
   },
   "bubble": {
     "letsGo": "let's go",
@@ -106,7 +107,8 @@
         "Mew… shall we try?"
       ]
     },
-    "caughtLine": "Caught it! Brought you a fish 🐟"
+    "caughtLine": "Caught it! Brought you a fish 🐟",
+    "backFromTrip": "I'm back from {spot}!"
   },
   "meow": "Meow~",
   "hints": {

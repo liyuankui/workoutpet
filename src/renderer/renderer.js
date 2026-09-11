@@ -326,3 +326,56 @@ canvas.addEventListener("click", () => {
 });
 
 microPet.ready();
+
+// ── F33 明信片渲染：景点剪影 + 当前猫，128×96 离屏作画回传 ──
+microPet.onPostcard((req) => {
+  const pc = document.createElement("canvas");
+  pc.width = 128; pc.height = 96;
+  const pctx = pc.getContext("2d");
+  const sp = req.spot;
+  // 天空 + 地面
+  pctx.fillStyle = sp.sky; pctx.fillRect(0, 0, 128, 96);
+  pctx.fillStyle = sp.land; pctx.fillRect(0, 64, 128, 32);
+  pctx.fillStyle = "rgba(255,255,255,0.7)"; pctx.fillRect(8, 8, 2, 2); pctx.fillRect(24, 14, 2, 2); pctx.fillRect(110, 10, 2, 2); // 星/灯点
+  const D = sp.land;
+  pctx.fillStyle = D;
+  // 地标剪影（像素块语言，每形状 8-14 块）
+  switch (sp.shape) {
+    case "pagoda": // 三层塔
+      pctx.fillRect(56, 24, 16, 40); pctx.fillRect(52, 34, 24, 4); pctx.fillRect(52, 44, 24, 4); pctx.fillRect(48, 54, 32, 4); pctx.fillRect(62, 14, 4, 10); break;
+    case "towers": // 楼群
+      pctx.fillRect(30, 30, 12, 34); pctx.fillRect(48, 16, 16, 48); pctx.fillRect(70, 36, 14, 28); pctx.fillRect(90, 24, 12, 40); break;
+    case "bridge": // 拱桥（西湖备用形）
+      pctx.fillRect(30, 50, 68, 6); pctx.fillRect(40, 56, 6, 8); pctx.fillRect(82, 56, 6, 8); pctx.fillRect(50, 44, 28, 6); break;
+    case "bamboo": // 竹丛
+      for (const [x, h] of [[40, 34], [50, 42], [62, 30], [76, 40]]) { pctx.fillRect(x, 64 - h, 4, h); pctx.fillRect(x - 4, 66 - h, 12, 3); } break;
+    case "wall": // 城墙垛口
+      pctx.fillRect(20, 44, 88, 20); for (let x = 20; x < 108; x += 12) pctx.fillRect(x, 38, 7, 6); break;
+    case "palace": // 飞檐大殿
+      pctx.fillRect(38, 48, 52, 16); pctx.fillRect(30, 44, 68, 4); pctx.fillRect(46, 36, 36, 8); pctx.fillRect(58, 26, 12, 10); break;
+    case "island": // 岛屿日光
+      pctx.fillRect(16, 60, 96, 4); pctx.fillStyle = "#f2dfa8"; pctx.fillRect(96, 16, 14, 14); break;
+    case "snow": // 雪松雪原
+      pctx.fillStyle = "#f0f4f8"; pctx.fillRect(0, 60, 128, 4);
+      pctx.fillStyle = D; pctx.fillRect(24, 40, 8, 20); pctx.fillRect(48, 30, 10, 30); pctx.fillRect(78, 44, 8, 16); break;
+    case "beach": // 棕榈海滩
+      pctx.fillRect(88, 44, 5, 20); pctx.fillRect(76, 40, 28, 5); pctx.fillRect(80, 34, 10, 6); pctx.fillStyle = "#7fc8d8"; pctx.fillRect(0, 66, 60, 4); break;
+    case "desk": // 显示器与杯子
+      pctx.fillRect(34, 32, 44, 26); pctx.fillStyle = "#e8e4dc"; pctx.fillRect(38, 36, 36, 18); pctx.fillStyle = D; pctx.fillRect(52, 58, 8, 5); pctx.fillRect(86, 48, 8, 10); break;
+    case "printer": // 打印机
+      pctx.fillRect(38, 36, 40, 16); pctx.fillRect(44, 52, 28, 8); pctx.fillStyle = "#ffffff"; pctx.fillRect(46, 30, 24, 8); break;
+  }
+  // 猫贴右下（当前 sprite 的 idleA，2px 格）
+  const sprite = microPet.sprites(req.spriteId);
+  const pal = sprite.PALETTE;
+  for (let y = 0; y < 32; y++) {
+    for (let x = 0; x < 32; x++) {
+      const ch = sprite.FRAMES.idleA[y][x];
+      const color = pal[ch];
+      if (!color) continue;
+      pctx.fillStyle = color;
+      pctx.fillRect(88 + (x >> 2) * 3, 56 + (y >> 2) * 3, 3, 3); // 8×8 缩样
+    }
+  }
+  microPet.sendPostcard(pc.toDataURL("image/png"));
+});

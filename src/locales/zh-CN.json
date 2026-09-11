@@ -30,7 +30,8 @@
     "checkUpdate": "检查更新",
     "updateAvailable": "v{v} 来啦！brew upgrade 更新",
     "upToDate": "已是最新 ✓",
-    "updateCheckFailed": "检查更新失败（网络？）"
+    "updateCheckFailed": "检查更新失败（网络？）",
+    "travelAlbum": "🖼 旅行相册"
   },
   "bubble": {
     "letsGo": "一起来",
@@ -106,7 +107,8 @@
         "喵…试试看？"
       ]
     },
-    "caughtLine": "抓到啦！叼来一条小鱼干 🐟"
+    "caughtLine": "抓到啦！叼来一条小鱼干 🐟",
+    "backFromTrip": "我从{spot}回来啦！"
   },
   "meow": "喵～",
   "hints": {

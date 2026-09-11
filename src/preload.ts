@@ -3,6 +3,7 @@ import { getPet } from "./core/pets";
 import { ANIMS } from "./core/anims";
 import { MOUSE_FRAMES, MOUSE_PALETTE, MOUSE_W, MOUSE_H } from "./core/mouse";
 import { OUTFITS, OUTFIT_PALETTE } from "./core/outfits";
+import type { Spot } from "./core/travel";
 import { strings, fmt } from "./core/i18n";
 import { react } from "./core/reactions";
 import { shouldStartDrag } from "./core/dragging";
@@ -46,6 +47,11 @@ contextBridge.exposeInMainWorld("microPet", {
   petClick: () => ipcRenderer.send("pet-click"),
   // 气泡占位通知（F34）：idle 小窗时动态扩窗容纳气泡，根治「喵～被截」
   bubbleBox: (on: boolean) => ipcRenderer.send("pet-bubble", on),
+  // 明信片渲染（F33）：main 请 renderer 离屏作画 → dataURL 回传落盘
+  onPostcard: (cb: (req: { spot: Spot; spriteId: string }) => void) => {
+    ipcRenderer.on("pet-postcard-render", (_e, req: { spot: Spot; spriteId: string }) => cb(req));
+  },
+  sendPostcard: (dataUrl: string) => ipcRenderer.send("pet-postcard-data", dataUrl),
   ready: () => ipcRenderer.send("pet-ready"),
   // sprite 静态数据（可序列化，供渲染端画当前宠物）
   sprites: (petId?: string) => {
