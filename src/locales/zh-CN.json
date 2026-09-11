@@ -26,7 +26,11 @@
       "wand": "🪄 逗猫棒（召回+蹦跳）"
     },
     "cattery": "猫舍（🐟 {n}）",
-    "thisCat": "这只猫"
+    "thisCat": "这只猫",
+    "checkUpdate": "检查更新",
+    "updateAvailable": "v{v} 来啦！brew upgrade 更新",
+    "upToDate": "已是最新 ✓",
+    "updateCheckFailed": "检查更新失败（网络？）"
   },
   "bubble": {
     "letsGo": "一起来",

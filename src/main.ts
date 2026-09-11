@@ -127,9 +127,10 @@ if (!app.requestSingleInstanceLock()) {
   });
 }
 
-// idle 留猫（约 150×180，高余量给跳跃 18px 弧线与 meow 气泡），remind/happy 扩到 360×300
-const CAT_W = 150, CAT_H = 180;
-const FULL_W = 360, FULL_H = 300;
+// 窗口紧贴猫（遮盖最小化，F34）：idle 134×164（猫 128×154+边）；气泡靠动态扩窗
+// remind/满态 368×232（气泡 max-width 240 + 猫 128；高=气泡 64+猫 154+边）
+const CAT_W = 134, CAT_H = 164;
+const FULL_W = 368, FULL_H = 232;
 
 let tray: Tray | null = null;
 
@@ -485,6 +486,18 @@ function main() {
 
   // ---------- IPC ----------
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
+  // F34 气泡占位：idle 小窗扩高容纳气泡（锚右下，向上扩）；FULL 态足够高不扩
+  let bubbleExpanded = false;
+  ipcMain.on("pet-bubble", (_e, on: boolean) => {
+    const h = win.getSize()[1];
+    if (on && !bubbleExpanded && h === CAT_H) {
+      setSizeAnchored(CAT_W, CAT_H + 64);
+      bubbleExpanded = true;
+    } else if (!on && bubbleExpanded) {
+      setSizeAnchored(CAT_W, CAT_H);
+      bubbleExpanded = false;
+    }
+  });
   ipcMain.on("pet-ready", () => broadcast());
   // 手动拖动：渲染端只发开始/移动信号，坐标权威在 getCursorScreenPoint
   // （movementX 在窗口自身移动后语义被 macOS 补发的 mousemove 污染，弃用）
@@ -527,11 +540,42 @@ function main() {
   };
   tray = new Tray(trayIcon());
 
+  /** F34e 检查更新：比对 GitHub 最新 release（不自动升级——保持 brew/手动节奏） */
+  async function checkUpdate(): Promise<void> {
+    const t = strings(currentLocale()).tray;
+    const show = (title: string, cue: string) => {
+      win.showInactive();
+      if (machine.pet === "idle") setSizeAnchored(FULL_W, FULL_H);
+      win.webContents.send("pet-hint", { title, cue });
+      setTimeout(() => { if (machine.pet === "idle") setSizeAnchored(CAT_W, CAT_H); }, 4600);
+    };
+    try {
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 5000);
+      const res = await fetch("https://api.github.com/repos/liyuankui/workoutpet/releases/latest", {
+        signal: ctrl.signal,
+        headers: { "User-Agent": "micro-pet" },
+      });
+      const tag = ((await res.json()) as { tag_name?: string }).tag_name ?? "?";
+      const latest = tag.replace(/^v/, "");
+      const cur = APP_VERSION;
+      const newer = latest > cur; // 语义化版本字符串比较（x.y.z 逐段可比）
+      show(newer ? fmt(t.updateAvailable, { v: latest }) : t.upToDate, newer ? "brew upgrade --cask micro-pet" : `v${cur}`);
+      rlog(`检查更新：本地 v${cur} / 最新 v${latest}${newer ? " → 有新版" : "，已最新"}`);
+    } catch (e) {
+      show(t.updateCheckFailed, "");
+      rlog(`检查更新失败：${String(e)}`);
+    }
+  }
+
   function buildTrayMenu() {
     const t = strings(currentLocale()).tray;
     tray!.setToolTip(t.tooltip);
     tray!.setContextMenu(
       Menu.buildFromTemplate([
+        { label: `v${APP_VERSION}`, enabled: false },
+        { label: t.checkUpdate, click: () => void checkUpdate() },
+        { type: "separator" },
         { label: t.showHide, click: () => { if (win.isVisible()) win.hide(); else { if (roam.roaming) roamRecall("你叫它回来"); else win.showInactive(); } } },
         {
           label: t.remindNow,

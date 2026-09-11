@@ -55,24 +55,24 @@ function playSkit(now) {
   }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (skit.type === "mouse") {
-    // 老鼠横穿（后段加速逃命），猫追半程、扑一下、扑空
-    const speed = t < 5 ? 22 : 40; // px/s
-    const mx = -48 + speed * t * (t < 5 ? 1 : 1 + (t - 5) * 0.4);
+    // 老鼠横穿：前 5s 匀速走完全程 2/3，后段加速逃命出画——全程猫鼠同框
+    const mx = t < 5 ? -40 + t * 20 : 60 + (t - 5) * 55;
     const mouseFrame = MOUSE.FRAMES[Math.floor(now / 140) % 2 ? "mouseA" : "mouseB"];
-    drawMouse(mouseFrame, mx, 128);
+    const mouseVisible = mx < 128;
+    if (mouseVisible) drawMouse(mouseFrame, mx, 128);
     let oy = 0;
-    let catFrame = Math.floor(now / 140) % 2 ? "idleA" : "idleWag"; // 小跑
-    if (t >= 5 && t < 6.2) { // 扑！
+    let catFrame = Math.floor(now / 140) % 2 ? "idleA" : "stretchA"; // 迈步小跑
+    if (t >= 5 && t < 6.2 && mouseVisible) { // 扑！
       oy = -Math.round(14 * Math.sin(Math.PI * (t - 5) / 1.2));
       catFrame = "happy";
     } else if (t >= 6.2) {
       catFrame = skit.caught ? "happy" : "plead"; // 抓到：得意；扑空：失落求安慰
       if (skit.caught && t < 6.6) oy = -6;
     }
-    const catOx = Math.max(-40, Math.min(24, mx - 84)); // 追在老鼠后头
+    const catOx = Math.max(-44, Math.min(30, mx - 66)); // 紧追其后
     const chase = t < 5 ? runRhythm(now) : { bob: 0, sway: 0 };
     drawFrame(catFrame, catOx + chase.sway, oy + chase.bob);
-    if (t < 5) drawSpeedLines(now, catOx + chase.sway);
+    if (t < 5 && chase.sway !== undefined) drawSpeedLines(now, catOx + chase.sway);
   } else if (skit.type === "mouse" && skit.caught && t >= 7.6 && t < 8.4) {
     // 谢幕：叼着战利品亮个相
     drawFrame("happy", 0, -4);
@@ -200,9 +200,11 @@ function showBubble(title, cue) {
   cueEl.textContent = cue ?? "";
   cueEl.style.display = cue ? "" : "none";
   bubble.classList.add("show");
+  microPet.bubbleBox(true); // 通知主进程扩窗（idle 小窗时才生效）
 }
 function hideBubble() {
   bubble.classList.remove("show");
+  microPet.bubbleBox(false);
 }
 
 // 演示菜单：直发反应（绕过节流——手动触发测试用）
@@ -245,11 +247,12 @@ microPet.onState((msg) => {
     // F25 陪练：倒数 + 当前步骤（主进程每秒推送）；再点猫提前结束也算完成
     showBubble(`⏱ ${msg.sessionRemainSec ?? "?"}s · ${msg.exercise.emoji} ${msg.exercise.name}`, msg.sessionStep ?? "");
   } else if (msg.pet === "cling") {
-    // 撒娇赖留：按性情选池，每次 broadcast（含 10 分钟轮换）随机换一句——可爱不指责
+    // 撒娇赖留：按性情选池随机一句；显示 8 秒自隐（不糊屏），10 分钟轮换再亮
     const pool = (s.bubble.clingPools && s.bubble.clingPools[personaPool]) || s.bubble.cling || [];
     const line = pool.length ? pool[Math.floor(Math.random() * pool.length)] : s.bubble.petMe;
     const ex = msg.exercise;
     showBubble(ex ? `${line}（${ex.emoji} ${ex.name}）` : line, "");
+    setTimeout(() => { if (petState === "cling") hideBubble(); }, 8000);
   } else if (msg.pet === "happy") {
     // F28 举牌：今日 N/M（达标庆祝）；连续天数并到副行
     const n = msg.todayCount ?? 0;

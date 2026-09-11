@@ -26,7 +26,11 @@
       "wand": "🪄 Cat teaser (recall + hop)"
     },
     "cattery": "Cattery (🐟 {n})",
-    "thisCat": "About this cat"
+    "thisCat": "About this cat",
+    "checkUpdate": "Check for updates",
+    "updateAvailable": "v{v} is out! brew upgrade",
+    "upToDate": "Up to date ✓",
+    "updateCheckFailed": "Update check failed (network?)"
   },
   "bubble": {
     "letsGo": "let's go",

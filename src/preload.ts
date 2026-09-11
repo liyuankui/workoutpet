@@ -44,6 +44,8 @@ contextBridge.exposeInMainWorld("microPet", {
   mouse: () => ({ PALETTE: MOUSE_PALETTE, FRAMES: MOUSE_FRAMES, W: MOUSE_W, H: MOUSE_H }),
   outfits: () => ({ OUTFITS, PALETTE: OUTFIT_PALETTE }),
   petClick: () => ipcRenderer.send("pet-click"),
+  // 气泡占位通知（F34）：idle 小窗时动态扩窗容纳气泡，根治「喵～被截」
+  bubbleBox: (on: boolean) => ipcRenderer.send("pet-bubble", on),
   ready: () => ipcRenderer.send("pet-ready"),
   // sprite 静态数据（可序列化，供渲染端画当前宠物）
   sprites: (petId?: string) => {
