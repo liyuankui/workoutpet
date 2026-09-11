@@ -1,6 +1,6 @@
 {
   "name": "micro-pet",
-  "version": "0.11.3",
+  "version": "0.11.4",
   "private": true,
   "description": "微运动桌宠：像素猫示范坐姿微运动，摸头打卡，本地 streak",
   "type": "module",
