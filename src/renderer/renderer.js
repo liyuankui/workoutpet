@@ -324,6 +324,11 @@ canvas.addEventListener("click", () => {
   const r = microPet.react(lastReactAt, now);
   if (!r) return;
   lastReactAt = now;
+  if (r === "roll" || r === "jump") {
+    // 部件路径（F36）：打滚/跳跃由部件拼装演出——帽子随头部件，永不悬空
+    poseDemo = { kind: r, start: now };
+    return;
+  }
   reaction = { type: r, start: now, duration: r === "meow" ? 900 : 700 };
   if (r === "meow") {
     const strs = microPet.strings(locale);
