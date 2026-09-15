@@ -2,8 +2,11 @@
 // 红线：纯装饰，无任何功能加成（不做「跳过提醒罐头」类违背顺延哲学的道具）
 export interface Outfit {
   art: string[];
+  /** 基准格位（SIT 坐标系） */
   gx: number;
   gy: number;
+  /** 挂载部件（F36）：head=跟头（帽/蝴蝶结），neck=跟头底颈点（围巾），body=跟身 */
+  anchor: "head" | "neck" | "body";
 }
 
 export const OUTFITS: Record<string, Outfit> = {
@@ -18,6 +21,7 @@ export const OUTFITS: Record<string, Outfit> = {
     ],
     gx: 11,
     gy: 3,
+    anchor: "head",
   },
   // 红围巾：颈部一圈带高光
   scarf: {
@@ -28,6 +32,7 @@ export const OUTFITS: Record<string, Outfit> = {
     ],
     gx: 9,
     gy: 21,
+    anchor: "neck",
   },
   // 粉蝴蝶结：侧颈小礼结
   bow: {
@@ -38,6 +43,7 @@ export const OUTFITS: Record<string, Outfit> = {
     ],
     gx: 21,
     gy: 18,
+    anchor: "head",
   },
 };
 

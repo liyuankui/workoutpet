@@ -375,11 +375,13 @@ function drawPose(p, ox = 0, oy = 0) {
   drawPart(PT.earR.art, p.earR.x + p.head.x - SIT.head.x, p.earR.y + p.head.y - SIT.head.y + (p.earR.down ? 2 : 0), ox, oy);
   drawPart(PT.paw.art, p.pawL.x, p.pawL.y, ox, oy);
   drawPart(PT.paw.art, p.pawR.x, p.pawR.y, ox, oy);
-  // 帽子挂头部件：跟随头位移（demo 核心证明点——打滚/跳跃永不悬空）
-  if (outfit === "hat") {
-    const o = OUTFITS.hat;
-    const hx = o.gx + (p.head.x - SIT.head.x);
-    const hy = o.gy + (p.head.y - SIT.head.y);
+  // 装扮部件挂载（F36）：按 anchor 跟随头/颈/身——任何动作永不悬空
+  const o = OUTFITS[outfit];
+  if (o) {
+    let hx = o.gx, hy = o.gy;
+    if (o.anchor === "head") { hx += p.head.x - SIT.head.x; hy += p.head.y - SIT.head.y; }
+    else if (o.anchor === "neck") { hx += p.head.x - SIT.head.x; hy += Math.round((p.head.y - SIT.head.y) / 2) + 3; } // 颈点：头身各半+跟身
+    else { hx += p.body.x - SIT.body.x; hy += p.body.y - SIT.body.y; }
     for (let y = 0; y < o.art.length; y++) for (let x = 0; x < o.art[y].length; x++) {
       const color = OPAL[o.art[y][x]];
       if (!color) continue;

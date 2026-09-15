@@ -14,9 +14,9 @@ describe("F26 装扮贴片", () => {
     }
   });
 
-  test("帽子在两耳之间（兔 x5..9 / x22..26 耳位不冲突）", () => {
-    const hat = OUTFITS.hat;
-    expect(hat.gx).toBeGreaterThanOrEqual(10);
-    expect(hat.gx + hat.art[0]!.length).toBeLessThanOrEqual(22);
+  test("三件各有部件挂点（F36：跟随永不悬空）", () => {
+    expect(OUTFITS.hat.anchor).toBe("head");
+    expect(OUTFITS.bow.anchor).toBe("head");
+    expect(OUTFITS.scarf.anchor).toBe("neck");
   });
 });
