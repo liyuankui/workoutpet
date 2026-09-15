@@ -153,6 +153,10 @@ function loop(now) {
     requestAnimationFrame(loop);
     return;
   }
+  if (!reaction && playPoseDemo(now)) { // 部件化 demo（F36）
+    requestAnimationFrame(loop);
+    return;
+  }
   if (reaction) {
     const p = (now - reaction.start) / reaction.duration; // 0→1
     if (p >= 1) {
@@ -217,6 +221,10 @@ microPet.onReaction((type) => {
     showBubble(microPet.strings(locale).meow, "");
     setTimeout(() => { if (petState === "idle" || petState === "happy") hideBubble(); }, 900);
   }
+});
+
+microPet.onPoseDemo((kind) => {
+  if (petState === "idle") poseDemo = { kind, start: performance.now() };
 });
 
 // 托盘操作后的非模态提示（如复制配置 Prompt 后告诉用户粘给谁）
@@ -379,3 +387,75 @@ microPet.onPostcard((req) => {
   }
   microPet.sendPostcard(pc.toDataURL("image/png"));
 });
+
+// ── F36 部件化 cutout demo：拼装渲染 + 帽挂头部件 + 三动作（walk/roll/jump） ──
+const { PARTS: PT, SIT_POSE: SIT } = microPet.parts();
+let poseDemo = null; // { kind: "walk"|"roll"|"jump", start }
+
+function drawPart(art, gx, gy, ox = 0, oy = 0) {
+  for (let y = 0; y < art.length; y++) {
+    for (let x = 0; x < art[y].length; x++) {
+      const color = PALETTE[art[y][x]];
+      if (!color) continue;
+      ctx.fillStyle = color;
+      ctx.fillRect((gx + x) * SCALE + ox, (gy + y) * SCALE + oy + LIFT_PAD, SCALE, SCALE);
+    }
+  }
+}
+
+function drawPose(p, ox = 0, oy = 0) {
+  // 尾 → 身 → 头 → 耳（耳在头坐标系内！帽子随后挂头）
+  drawPart(p.tail.wag ? PT.tailWag.art : PT.tailUp.art, p.tail.x, p.tail.y, ox, oy);
+  drawPart(PT.body.art, p.body.x, p.body.y, ox, oy);
+  drawPart(PT.head.art, p.head.x, p.head.y, ox, oy);
+  drawPart(PT.earL.art, p.earL.x + p.head.x - SIT.head.x, p.earL.y + p.head.y - SIT.head.y, ox, oy);
+  drawPart(PT.earR.art, p.earR.x + p.head.x - SIT.head.x, p.earR.y + p.head.y - SIT.head.y, ox, oy);
+  drawPart(PT.paw.art, p.pawL.x, p.pawL.y, ox, oy);
+  drawPart(PT.paw.art, p.pawR.x, p.pawR.y, ox, oy);
+  // 帽子挂头部件：跟随头位移（demo 核心证明点——打滚/跳跃永不悬空）
+  if (outfit === "hat") {
+    const o = OUTFITS.hat;
+    const hx = o.gx + (p.head.x - SIT.head.x);
+    const hy = o.gy + (p.head.y - SIT.head.y);
+    for (let y = 0; y < o.art.length; y++) for (let x = 0; x < o.art[y].length; x++) {
+      const color = OPAL[o.art[y][x]];
+      if (!color) continue;
+      ctx.fillStyle = color;
+      ctx.fillRect((hx + x) * SCALE + ox, (hy + y) * SCALE + oy + LIFT_PAD, SCALE, SCALE);
+    }
+  }
+}
+
+function playPoseDemo(now) {
+  if (!poseDemo) return false;
+  const t = (now - poseDemo.start) / 1000;
+  if (t > 2.6) { poseDemo = null; return false; }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const p = { ...SIT, head: { ...SIT.head }, earL: { ...SIT.earL }, earR: { ...SIT.earR }, body: { ...SIT.body }, tail: { ...SIT.tail } };
+  if (poseDemo.kind === "walk") {
+    p.body.y = SIT.body.y - Math.abs(Math.round(2 * Math.sin(now / 85)));
+    p.head.y = p.body.y + 11 - Math.round(1.5 * Math.sin(now / 85)); // 头滞后半拍
+    p.earL.y += Math.round(Math.sin(now / 85) * 1);
+    p.earR.y -= Math.round(Math.sin(now / 85) * 1);
+    p.tail.wag = Math.floor(now / 200) % 2 === 0;
+  } else if (poseDemo.kind === "roll") {
+    const k = Math.sin(Math.PI * Math.min(1, t / 2.6)); // 滚动强度包络
+    p.body.y = SIT.body.y + Math.round(9 * k);           // 身体沉（侧倒感）
+    p.head.x = SIT.head.x + Math.round(10 * k);          // 头贴到身侧（打滚）
+    p.head.y = SIT.head.y + Math.round(7 * k);
+    p.earL.y += Math.round(5 * k); p.earR.y += Math.round(5 * k); // 耳横倒
+    p.tail.wag = Math.floor(now / 150) % 2 === 0;
+    p.pawL.y += Math.round(6 * k); p.pawR.y += Math.round(6 * k);
+  } else if (poseDemo.kind === "jump") {
+    const lift = Math.round(16 * Math.sin(Math.PI * Math.min(1, t / 2.6)));
+    p.head.y = SIT.head.y - lift;
+    p.body.y = SIT.body.y - lift;
+    p.earL.y = SIT.earL.y - lift + Math.round(3 * Math.sin(Math.PI * t)); // 耳下压再扬
+    p.earR.y = SIT.earR.y - lift + Math.round(3 * Math.sin(Math.PI * t));
+    p.pawL.y = SIT.pawL.y - lift - (lift > 4 ? 3 : 0); // 前爪腾空伸出
+    p.pawR.y = SIT.pawR.y - lift - (lift > 4 ? 3 : 0);
+    p.tail.wag = false;
+  }
+  drawPose(p);
+  return true;
+}

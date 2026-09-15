@@ -32,7 +32,10 @@
     "upToDate": "已是最新 ✓",
     "updateCheckFailed": "检查更新失败（网络？）",
     "travelAlbum": "🖼 旅行相册",
-    "autoLaunch": "开机自启动"
+    "autoLaunch": "开机自启动",
+    "demoPoseWalk": "部件demo：走路",
+    "demoPoseRoll": "部件demo：打滚（看帽子！）",
+    "demoPoseJump": "部件demo：跳跃"
   },
   "bubble": {
     "letsGo": "一起来",

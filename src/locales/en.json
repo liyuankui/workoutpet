@@ -32,7 +32,10 @@
     "upToDate": "Up to date ✓",
     "updateCheckFailed": "Update check failed (network?)",
     "travelAlbum": "🖼 Travel album",
-    "autoLaunch": "Launch at login"
+    "autoLaunch": "Launch at login",
+    "demoPoseWalk": "Parts demo: walk",
+    "demoPoseRoll": "Parts demo: roll (watch the hat!)",
+    "demoPoseJump": "Parts demo: jump"
   },
   "bubble": {
     "letsGo": "let's go",

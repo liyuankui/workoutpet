@@ -717,6 +717,9 @@ function main() {
                 broadcast();
               },
             },
+            { label: t.demoPoseWalk, click: () => { win.showInactive(); win.webContents.send("pet-pose-demo", "walk"); } },
+            { label: t.demoPoseRoll, click: () => { win.showInactive(); win.webContents.send("pet-pose-demo", "roll"); } },
+            { label: t.demoPoseJump, click: () => { win.showInactive(); win.webContents.send("pet-pose-demo", "jump"); } },
             { label: t.demoSkitMouse, click: () => { win.showInactive(); win.webContents.send("pet-skit", { type: "mouse" }); } },
             { label: t.demoSkitHop, click: () => { win.showInactive(); win.webContents.send("pet-skit", { type: "hop" }); } },
             { label: t.demoJump, click: () => { win.showInactive(); win.webContents.send("pet-reaction", "jump"); } },

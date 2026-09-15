@@ -4,6 +4,7 @@ import { ANIMS } from "./core/anims";
 import { MOUSE_FRAMES, MOUSE_PALETTE, MOUSE_W, MOUSE_H } from "./core/mouse";
 import { OUTFITS, OUTFIT_PALETTE } from "./core/outfits";
 import type { Spot } from "./core/travel";
+import { PARTS, SIT_POSE } from "./core/parts";
 import { strings, fmt } from "./core/i18n";
 import { react } from "./core/reactions";
 import { shouldStartDrag } from "./core/dragging";
@@ -38,12 +39,17 @@ contextBridge.exposeInMainWorld("microPet", {
   onReaction: (cb: (type: string) => void) => {
     ipcRenderer.on("pet-reaction", (_e, type: string) => cb(type));
   },
+  // 部件化 demo（F36）：托盘直发动作，渲染端拼装演出
+  onPoseDemo: (cb: (kind: "walk" | "roll" | "jump") => void) => {
+    ipcRenderer.on("pet-pose-demo", (_e, kind: "walk" | "roll" | "jump") => cb(kind));
+  },
   // 小剧场（F27）：主进程择时开演，渲染端自导自演 8s
   onSkit: (cb: (skit: { type: "mouse" | "hop" }) => void) => {
     ipcRenderer.on("pet-skit", (_e, skit: { type: "mouse" | "hop" }) => cb(skit));
   },
   mouse: () => ({ PALETTE: MOUSE_PALETTE, FRAMES: MOUSE_FRAMES, W: MOUSE_W, H: MOUSE_H }),
   outfits: () => ({ OUTFITS, PALETTE: OUTFIT_PALETTE }),
+  parts: () => ({ PARTS, SIT_POSE }),
   petClick: () => ipcRenderer.send("pet-click"),
   // 气泡占位通知（F34）：idle 小窗时动态扩窗容纳气泡，根治「喵～被截」
   bubbleBox: (on: boolean) => ipcRenderer.send("pet-bubble", on),
