@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { getPet } from "../src/core/pets";
 import { CAT_PERSONAS } from "../src/core/cats";
-import { ANIMS } from "../src/core/anims";
 
 /** F32 猫宇宙 sprite 组装：6 只猫逐只校验（骨架 × 花色重着色） */
 describe("F32 猫宇宙 sprite", () => {
@@ -16,9 +15,9 @@ describe("F32 猫宇宙 sprite", () => {
           for (const ch of row) expect(ch in pet.palette, `${persona.id}/${name} 未知字符 ${ch}`).toBe(true);
         }
       }
-      const needed = new Set<string>();
-      for (const steps of Object.values(ANIMS)) for (const [f] of steps) needed.add(f);
-      for (const f of needed) expect(f in pet.frames, `${persona.id} 缺帧 ${f}`).toBe(true);
+      // 骨架帧退役后仍需：tray 图标（happy）与明信片缩样（idleA）
+      expect("happy" in pet.frames).toBe(true);
+      expect("idleA" in pet.frames).toBe(true);
     }
   });
 

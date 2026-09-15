@@ -53,6 +53,41 @@ export const PARTS = {
     ],
     x: 0, y: 0,
   },
+  // 头变体：眨眼（横线眼）与撒娇泪光（高光下移）
+  headBlink: {
+    art: [
+      "....KKKKKKKK....",
+      "..KKOOOOOOOOKK..",
+      ".KOOOOOOOOOOOOK.",
+      ".KOEOOOOOOOEOOK.",
+      "KOOEOOOOOOOEOOOK",
+      "KOOOOOPPPOOOOOOK",
+      "KOOOOOOOOOOOOOOK",
+      ".KOOOOOOOOOOOOK.",
+      ".KOOOOOOOOOOOOK.",
+      "..KKOOOOOOOOKK..",
+      "....KKKKKKKK....",
+      "................",
+    ],
+    x: 0, y: 0,
+  },
+  headPlead: {
+    art: [
+      "....KKKKKKKK....",
+      "..KKOOOOOOOOKK..",
+      ".KOOOOOOOOOOOOK.",
+      ".KOEOOOOOOOEOOK.",
+      "KOOEOOOOOOOWEOOK",
+      "KOOOOOPPPOOOOOOK",
+      "KOOOOOOOOOOOOOOK",
+      ".KOOOOOOOOOOOOK.",
+      ".KOOOOOOOOOOOOK.",
+      "..KKOOOOOOOOKK..",
+      "....KKKKKKKK....",
+      "................",
+    ],
+    x: 0, y: 0,
+  },
   // 尾两态（4×7）：左摆/右摆
   tailWag: {
     art: ["K...", "KK..", ".KK.", ".KK.", "..K.", "..K.", "...K"],
@@ -70,10 +105,12 @@ export const PARTS = {
 } as const;
 
 /** 默认坐姿拼装（格坐标，画布 32 宽）：部件相对画布原点 */
+/** 部件姿态：headKind 选头变体（睁/眨/泪光），其余为位移/选择 */
 export interface Pose {
   head: { x: number; y: number };
-  earL: { x: number; y: number };
-  earR: { x: number; y: number };
+  headKind?: "open" | "blink" | "plead";
+  earL: { x: number; y: number; down?: boolean };
+  earR: { x: number; y: number; down?: boolean };
   body: { x: number; y: number };
   tail: { x: number; y: number; wag: boolean };
   pawL: { x: number; y: number };

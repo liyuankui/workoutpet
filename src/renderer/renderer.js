@@ -1,6 +1,6 @@
 // 渲染端：像素猫动画 + 气泡 + 点击互动反应（状态权威在 main 进程，sprite/文案经 preload 注入）
 /* global microPet */
-let { PALETTE, GRID, FRAMES, ANIMS, SPRITE_ID } = microPet.sprites();
+let { PALETTE, GRID, FRAMES, SPRITE_ID } = microPet.sprites(); // FRAMES 仅明信片缩样使用；主渲染已全部件化
 const SCALE = 4; // 32 × 4 = 128px（32×32 高精网格）
 
 const canvas = document.getElementById("cat");
@@ -61,31 +61,27 @@ function playSkit(now) {
     const mouseVisible = mx < 128;
     if (mouseVisible) drawMouse(mouseFrame, mx, 128);
     let oy = 0;
-    let catFrame = Math.floor(now / 140) % 2 ? "idleA" : "stretchA"; // 迈步小跑
+    let catState = "walk";
     if (t >= 5 && t < 6.2 && mouseVisible) { // 扑！
       oy = -Math.round(14 * Math.sin(Math.PI * (t - 5) / 1.2));
-      catFrame = "happy";
+      catState = "happy";
     } else if (t >= 6.2) {
-      catFrame = skit.caught ? "happy" : "plead"; // 抓到：得意；扑空：失落求安慰
+      catState = skit.caught ? "happy" : "cling"; // 抓到：得意蹦跳；扑空：歪头求安慰
       if (skit.caught && t < 6.6) oy = -6;
     }
     const catOx = Math.max(-44, Math.min(30, mx - 66)); // 紧追其后
-    const chase = t < 5 ? runRhythm(now) : { bob: 0, sway: 0 };
-    drawFrame(catFrame, catOx + chase.sway, oy + chase.bob);
-    if (t < 5 && chase.sway !== undefined) drawSpeedLines(now, catOx + chase.sway);
+    drawPose(poseNow(catState, now), catOx, oy);
+    if (t < 5) drawSpeedLines(now, catOx);
   } else if (skit.type === "mouse" && skit.caught && t >= 7.6 && t < 8.4) {
-    // 谢幕：叼着战利品亮个相
-    drawFrame("happy", 0, -4);
+    // 谢幕：叼着战利品亮个相（部件 happy + 微跳）
+    drawPose(poseNow("happy", now), 0, -4);
     return true;
-  } else {
-    // hop：原地连蹦（三组两连跳，间以期待眼神）
+  } else if (skit.type === "hop") {
+    // hop 剧场：两连蹦 + 歪头期待（部件）
     const phase = t % 2.6;
-    let oy = 0;
-    let frame = "idleA";
-    if (phase < 0.5) { oy = -Math.round(16 * Math.sin(Math.PI * phase / 0.5)); frame = "happy"; }
-    else if (phase < 1.0) { oy = -Math.round(12 * Math.sin(Math.PI * (phase - 0.5) / 0.5)); frame = "happy"; }
-    else if (phase < 1.6) frame = "plead";
-    drawFrame(frame, 0, oy);
+    if (phase < 0.5) drawPose(poseNow("happy", now), 0, -Math.round(16 * Math.sin(Math.PI * phase / 0.5)));
+    else if (phase < 1.0) drawPose(poseNow("happy", now), 0, -Math.round(12 * Math.sin(Math.PI * (phase - 0.5) / 0.5)));
+    else drawPose(poseNow("cling", now)); // 歪头期待
   }
   return true;
 }
@@ -107,35 +103,7 @@ function drawOutfit(ox, oy) {
   }
 }
 
-function drawFrame(name, ox, oy, sq) {
-  // ox/oy 为像素偏移（历史 bug：曾按格数 ×SCALE 放大，跳一下 6px 变 42px 顶出窗口被裁）
-  // sq: {sx, sy} 挤压拉伸（squash & stretch）——以猫底部中心为轴，压扁时脚不离地
-  const frame = FRAMES[name];
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (sq) {
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height);
-    ctx.scale(sq.sx, sq.sy);
-    ctx.translate(-canvas.width / 2, -canvas.height);
-  }
-  for (let y = 0; y < GRID; y++) {
-    for (let x = 0; x < GRID; x++) {
-      const color = PALETTE[frame[y][x]];
-      if (!color) continue;
-      ctx.fillStyle = color;
-      ctx.fillRect(x * SCALE + ox, y * SCALE + oy + LIFT_PAD, SCALE, SCALE);
-    }
-  }
-  if (sq) ctx.restore();
-  drawOutfit(ox, oy); // 装扮随帧偏移（跳跃/浮动一起走）
-}
 
-// 跑动律动（走位/追逐共用）：四拍颠簸 + 重心横摆 + 身后速度线——跑得像跑
-function runRhythm(now) {
-  const bob = -Math.abs(Math.round(3 * Math.sin(now / 85)));
-  const sway = Math.round(Math.sin(now / 85) * 1);
-  return { bob, sway };
-}
 function drawSpeedLines(now, ox) {
   const flick = Math.floor(now / 80) % 3; // 闪烁节拍
   ctx.fillStyle = "rgba(74,59,50,0.35)";
@@ -162,39 +130,28 @@ function loop(now) {
     if (p >= 1) {
       reaction = null;
     } else if (reaction.type === "wiggle") {
-      drawFrame("idleA", Math.floor(now / 90) % 2 === 0 ? 0 : 1, 0);
-    } else if (reaction.type === "jump") {
-      // 18px 弧线跳跃（程序化 squash 已撤：非整数缩放破坏像素网格，视觉评估判负优化；
-      // 弹性待 32×32 手绘跳姿帧兑现）
-      drawFrame("idleA", 0, -Math.round(18 * Math.sin(Math.PI * p)));
+      // 部件蹭蹭：身体左右歪 + 头反向 + 双耳交错（替代 1px 抖）
+      const dir = Math.floor(now / 90) % 2 === 0 ? 1 : -1;
+      const p = poseNow("idle", now);
+      p.body.x += 2 * dir;
+      p.head.x -= dir;
+      p.earL.y += dir;
+      p.earR.y -= dir;
+      drawPose(p);
     } else if (reaction.type === "meow") {
-      drawFrame("idleA", 0, 0); // 气泡在 click 时已弹出
-    } else if (reaction.type === "roll") {
-      drawFrame("roll", Math.floor(now / 140) % 2 === 0 ? 0 : 1, 0); // 侧躺打滚抖
+      const p = poseNow("idle", now);
+      p.head.y -= 1; // 微仰头喵一声
+      drawPose(p);
     }
     if (reaction) {
       requestAnimationFrame(loop);
       return;
     }
   }
-  const anim = ANIMS[petState] ?? ANIMS.idle;
-  const total = anim.reduce((s, f) => s + f[1], 0);
-  let t = (now - animStart) % total;
-  // 呼吸浮动：静止≠死物（仅闲坐/撒娇，动作状态不乱浮）
-  for (const [name, dur, ox, oy] of anim) {
-    if (t < dur) {
-      if (petState === "walk") {
-        const r = runRhythm(now);
-        drawFrame(name, ox + r.sway, oy + r.bob);
-        drawSpeedLines(now, ox + r.sway);
-      } else {
-        const bob = petState === "idle" || petState === "cling" ? Math.round(Math.sin(now / 650) * 1.5) : 0;
-        drawFrame(name, ox, oy + bob);
-      }
-      break;
-    }
-    t -= dur;
-  }
+  // 全迁移（F36）：一切状态由部件拼装——骨架帧退役
+  const p = poseNow(petState, now);
+  drawPose(p);
+  if (petState === "walk") drawSpeedLines(now, 0); // 走位拖尾
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
@@ -412,9 +369,10 @@ function drawPose(p, ox = 0, oy = 0) {
   // 尾 → 身 → 头 → 耳（耳在头坐标系内！帽子随后挂头）
   drawPart(p.tail.wag ? PT.tailWag.art : PT.tailUp.art, p.tail.x, p.tail.y, ox, oy);
   drawPart(PT.body.art, p.body.x, p.body.y, ox, oy);
-  drawPart(PT.head.art, p.head.x, p.head.y, ox, oy);
-  drawPart(PT.earL.art, p.earL.x + p.head.x - SIT.head.x, p.earL.y + p.head.y - SIT.head.y, ox, oy);
-  drawPart(PT.earR.art, p.earR.x + p.head.x - SIT.head.x, p.earR.y + p.head.y - SIT.head.y, ox, oy);
+  const headArt = p.headKind === "blink" ? PT.headBlink.art : p.headKind === "plead" ? PT.headPlead.art : PT.head.art;
+  drawPart(headArt, p.head.x, p.head.y, ox, oy);
+  drawPart(PT.earL.art, p.earL.x + p.head.x - SIT.head.x, p.earL.y + p.head.y - SIT.head.y + (p.earL.down ? 2 : 0), ox, oy);
+  drawPart(PT.earR.art, p.earR.x + p.head.x - SIT.head.x, p.earR.y + p.head.y - SIT.head.y + (p.earR.down ? 2 : 0), ox, oy);
   drawPart(PT.paw.art, p.pawL.x, p.pawL.y, ox, oy);
   drawPart(PT.paw.art, p.pawR.x, p.pawR.y, ox, oy);
   // 帽子挂头部件：跟随头位移（demo 核心证明点——打滚/跳跃永不悬空）
@@ -431,6 +389,51 @@ function drawPose(p, ox = 0, oy = 0) {
   }
 }
 
+// 状态 pose 动画（F36 全迁移）：骨架帧退役，一切姿态=部件拼装
+function poseNow(state, now) {
+  const p = { ...SIT, head: { ...SIT.head }, earL: { ...SIT.earL }, earR: { ...SIT.earR }, body: { ...SIT.body }, tail: { ...SIT.tail }, pawL: { ...SIT.pawL }, pawR: { ...SIT.pawR } };
+  const t = now / 1000;
+  if (state === "idle") {
+    // 三层微动：头呼吸起伏 + 尾常摆 + 周期眨眼
+    p.head.y += Math.round(1.2 * Math.sin(now / 650));
+    p.tail.wag = Math.floor(now / 900) % 2 === 0;
+    if (t % 3.4 > 3.26) p.headKind = "blink";
+  } else if (state === "remind" || state === "session") {
+    // 拉伸插值：前倾→伸展→回（周期 2.7s），会话时点缀 happy 头
+    const k = Math.sin(Math.PI * ((t % 2.7) / 2.7)); // 0→1→0
+    p.body.x -= Math.round(3 * k);       // 前倾
+    p.head.x += Math.round(4 * k);       // 头前伸引导
+    p.head.y += Math.round(2 * k);
+    p.pawL.x -= Math.round(5 * k);       // 前爪探出
+    p.pawR.x -= Math.round(4 * k);
+    p.tail.wag = k > 0.5;
+    if (state === "session" && k > 0.85) p.headKind = "plead"; // 用力时泪光卖力相
+  } else if (state === "happy") {
+    // 弹跳 + 耳尾滞后（物理惯性）
+    const bounce = Math.abs(Math.sin(t * 6));
+    p.head.y -= Math.round(6 * bounce);
+    p.body.y -= Math.round(5 * bounce);
+    p.earL.y += Math.round(2 * (1 - bounce)); // 起跳耳滞后
+    p.earR.y += Math.round(2 * (1 - bounce));
+    p.pawL.y -= Math.round(6 * bounce);
+    p.pawR.y -= Math.round(6 * bounce);
+    p.tail.wag = Math.floor(now / 300) % 2 === 0;
+  } else if (state === "cling") {
+    // 歪头杀：头横移 + 一耳垂 + 泪光
+    p.head.x += 2;
+    p.head.y += 1;
+    p.headKind = "plead";
+    p.earR.down = true;
+    p.tail.wag = Math.floor(now / 1200) % 2 === 0;
+  } else if (state === "walk") {
+    const bob = -Math.abs(Math.round(2 * Math.sin(now / 85)));
+    p.body.y += bob;
+    p.head.y += bob - Math.round(1.5 * Math.sin(now / 85));
+    p.tail.wag = Math.floor(now / 200) % 2 === 0;
+  }
+  return p;
+}
+
 function playPoseDemo(now) {
   if (!poseDemo) return false;
   const t = (now - poseDemo.start) / 1000;
@@ -438,11 +441,7 @@ function playPoseDemo(now) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const p = { ...SIT, head: { ...SIT.head }, earL: { ...SIT.earL }, earR: { ...SIT.earR }, body: { ...SIT.body }, tail: { ...SIT.tail } };
   if (poseDemo.kind === "walk") {
-    p.body.y = SIT.body.y - Math.abs(Math.round(2 * Math.sin(now / 85)));
-    p.head.y = p.body.y + 11 - Math.round(1.5 * Math.sin(now / 85)); // 头滞后半拍
-    p.earL.y += Math.round(Math.sin(now / 85) * 1);
-    p.earR.y -= Math.round(Math.sin(now / 85) * 1);
-    p.tail.wag = Math.floor(now / 200) % 2 === 0;
+    return { kind: "walk", start: 0 }, drawPose(poseNow("walk", now)), true; // 复用状态 pose
   } else if (poseDemo.kind === "roll") {
     const k = Math.sin(Math.PI * Math.min(1, t / 2.6)); // 滚动强度包络
     p.body.y = SIT.body.y + Math.round(9 * k);           // 身体沉（侧倒感）

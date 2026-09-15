@@ -1,6 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { getPet } from "./core/pets";
-import { ANIMS } from "./core/anims";
 import { MOUSE_FRAMES, MOUSE_PALETTE, MOUSE_W, MOUSE_H } from "./core/mouse";
 import { OUTFITS, OUTFIT_PALETTE } from "./core/outfits";
 import type { Spot } from "./core/travel";
@@ -62,7 +61,7 @@ contextBridge.exposeInMainWorld("microPet", {
   // sprite 静态数据（可序列化，供渲染端画当前宠物）
   sprites: (petId?: string) => {
     const p = getPet(petId ?? "cat");
-    return { PALETTE: p.palette, GRID: p.grid, FRAMES: p.frames, ANIMS, SPRITE_ID: p.id };
+    return { PALETTE: p.palette, GRID: p.grid, FRAMES: p.frames, SPRITE_ID: p.id };
   },
   // 双语文案 + 占位符模板
   strings: (locale: string) => strings(locale),
