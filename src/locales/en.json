@@ -31,7 +31,8 @@
     "updateAvailable": "v{v} is out! brew upgrade",
     "upToDate": "Up to date ✓",
     "updateCheckFailed": "Update check failed (network?)",
-    "travelAlbum": "🖼 Travel album"
+    "travelAlbum": "🖼 Travel album",
+    "autoLaunch": "Launch at login"
   },
   "bubble": {
     "letsGo": "let's go",

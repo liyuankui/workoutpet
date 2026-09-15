@@ -31,7 +31,8 @@
     "updateAvailable": "v{v} 来啦！brew upgrade 更新",
     "upToDate": "已是最新 ✓",
     "updateCheckFailed": "检查更新失败（网络？）",
-    "travelAlbum": "🖼 旅行相册"
+    "travelAlbum": "🖼 旅行相册",
+    "autoLaunch": "开机自启动"
   },
   "bubble": {
     "letsGo": "一起来",

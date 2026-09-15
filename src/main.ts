@@ -893,6 +893,12 @@ function main() {
           checked: telemetryEnabled(readConfig()),
           click: (item) => saveConfig({ telemetry: item.checked }),
         },
+        {
+          label: t.autoLaunch,
+          type: "checkbox",
+          checked: app.getLoginItemSettings().openAtLogin,
+          click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
+        },
         { label: t.quit, click: () => app.quit() },
       ]),
     );
