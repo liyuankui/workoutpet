@@ -3,7 +3,6 @@ import { getPet } from "./core/pets";
 import { MOUSE_FRAMES, MOUSE_PALETTE, MOUSE_W, MOUSE_H } from "./core/mouse";
 import { OUTFITS, OUTFIT_PALETTE } from "./core/outfits";
 import type { Spot } from "./core/travel";
-import { PARTS, SIT_POSE } from "./core/parts";
 import { strings, fmt } from "./core/i18n";
 import { react } from "./core/reactions";
 import { shouldStartDrag } from "./core/dragging";
@@ -12,6 +11,8 @@ export interface PetStateMsg {
   pet: "idle" | "remind" | "happy" | "cling" | "session";
   /** 当前宠物 id（cat/bunny…）：变化时渲染端重取 sprite */
   spriteId?: string;
+  /** 当前花色 id（sheet 烘焙选缓存） */
+  coatId?: string;
   /** 窗口走位中（外出/跑回）——渲染端播 walk 动画 */
   walking?: boolean;
   /** 当前装扮（hat/scarf/bow，null=素身） */
@@ -48,7 +49,13 @@ contextBridge.exposeInMainWorld("microPet", {
   },
   mouse: () => ({ PALETTE: MOUSE_PALETTE, FRAMES: MOUSE_FRAMES, W: MOUSE_W, H: MOUSE_H }),
   outfits: () => ({ OUTFITS, PALETTE: OUTFIT_PALETTE }),
-  parts: () => ({ PARTS, SIT_POSE }),
+  // F37 sprite sheet：main 读盘（sandbox 禁 node:fs）→ sendSync 一次性取元数据+LUT+资产目录
+  sheets: () =>
+    ipcRenderer.sendSync("pet-sheets-meta") as {
+      meta: { sheets: Record<string, { file: string; frameW: number; frameH: number; frames: number; fps: number }>; anchors: { headX: number; headY: number }; paletteSwap: Record<string, string> } | null;
+      luts: Record<string, Record<string, string>>;
+      dir: string;
+    },
   petClick: () => ipcRenderer.send("pet-click"),
   // 气泡占位通知（F34）：idle 小窗时动态扩窗容纳气泡，根治「喵～被截」
   bubbleBox: (on: boolean) => ipcRenderer.send("pet-bubble", on),

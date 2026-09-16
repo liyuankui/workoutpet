@@ -8,8 +8,7 @@ import exercisesJson from "./core/exercises.json";
 import { userPaths, readUserExercisesRaw } from "./core/userConfig";
 import { appendCheckIn, countToday, readDB, localDateKey, workdayStreak } from "./core/streak";
 import { renderReport } from "./core/report";
-import { getPet, frameToRGBA } from "./core/pets";
-import { getCoat } from "./core/coats";
+import { COATS, getCoat } from "./core/coats";
 import { CAT_PERSONAS, CAT_PRICE, getPersona, starterCats } from "./core/cats";
 import { getPersonality } from "./core/personalities";
 import { fmt, isLocale, oppositeLocaleLabel, resolveLocale, strings, type Locale } from "./core/i18n";
@@ -124,8 +123,8 @@ if (!app.requestSingleInstanceLock()) {
 
 // 窗口紧贴猫（遮盖最小化，F34）：idle 134×164（猫 128×154+边）；气泡靠动态扩窗
 // remind/满态 368×232（气泡 max-width 240 + 猫 128；高=气泡 64+猫 154+边）
-const CAT_W = 134, CAT_H = 164;
-const FULL_W = 368, FULL_H = 232;
+const CAT_W = 144, CAT_H = 184;
+const FULL_W = 372, FULL_H = 252;
 
 let tray: Tray | null = null;
 
@@ -332,7 +331,7 @@ function main() {
     travel = { spotId: null };
     writeTravel(travel);
     if (!spot) return;
-    win.webContents.send("pet-postcard-render", { spot, spriteId: getPet(inv.activeCat).id });
+    win.webContents.send("pet-postcard-render", { spot, spriteId: String(inv.activeCat) });
     const loc = currentLocale();
     const b = strings(loc).bubble;
     const cue = `${spot.souvenir[loc]} · ${spot.rare ? "✨" : ""}`;
@@ -377,7 +376,8 @@ function main() {
     win.webContents.send("pet-state", {
       pet: machine.pet,
       walking,
-      spriteId: getPet(inv.activeCat).id,
+      spriteId: String(inv.activeCat),
+      coatId: activeCat().coatId,
       pool: getPersonality(activeCat().personalityId).pool,
       exercise: view,
       streakDays:
@@ -538,6 +538,22 @@ function main() {
   }, 1_000);
 
   // ---------- IPC ----------
+  ipcMain.on("pet-sheets-meta", (e) => {
+    // F37：sprite 元数据+palette LUT+资产目录（sandbox preload 禁 node:fs，由 main 供）
+    const dir = join(app.getAppPath(), "assets", "cats");
+    let meta: unknown = null;
+    try { meta = JSON.parse(readFileSync(join(dir, "sprites.json"), "utf8")); } catch { /* 渲染端兜底原色 */ }
+    const swap = ((meta as { paletteSwap?: Record<string, string> })?.paletteSwap ?? {}) as Record<string, string>;
+    const luts: Record<string, Record<string, string>> = {};
+    for (const coat of COATS) {
+      luts[coat.id] = {};
+      for (const [srcHex, slot] of Object.entries(swap)) {
+        const dst = slot === "body" ? coat.palette.O : slot === "eye" ? coat.palette.E : slot === "stripe" ? coat.stripe : coat.palette.K;
+        if (dst) luts[coat.id]![srcHex] = dst as string;
+      }
+    }
+    e.returnValue = { meta, luts, dir };
+  });
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
   ipcMain.on("pet-postcard-data", (_e, dataUrl: string) => {
     try {
@@ -605,13 +621,8 @@ function main() {
     rlog(`当前猫 · ${persona.name["zh-CN"]}（${per.name["zh-CN"]}）`);
   };
   applyCat();
-  const trayIcon = () => {
-    const pet = getPet(inv.activeCat);
-    return nativeImage.createFromBuffer(Buffer.from(frameToRGBA(pet, pet.frames.happy)), {
-      width: pet.grid,
-      height: pet.grid,
-    }).resize({ width: 16, height: 16 });
-  };
+  const trayIcon = () =>
+    nativeImage.createFromPath(join(app.getAppPath(), "assets", "cats", "sit.png")).resize({ width: 18, height: 18 });
   tray = new Tray(trayIcon());
 
   /** 逐段语义化版本比较（审计修复：字符串比较 0.10.x vs 0.9.x 会误判） */

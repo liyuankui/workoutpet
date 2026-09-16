@@ -1,7 +1,7 @@
 // 渲染端：像素猫动画 + 气泡 + 点击互动反应（状态权威在 main 进程，sprite/文案经 preload 注入）
 /* global microPet */
 let { PALETTE, GRID, FRAMES, SPRITE_ID } = microPet.sprites(); // FRAMES 仅明信片缩样使用；主渲染已全部件化
-const SCALE = 4; // 32 × 4 = 128px（32×32 高精网格）
+const SCALE = 3; // 兼容值（老鼠/明信片缩样仍按格 ×3）
 
 const canvas = document.getElementById("cat");
 const ctx = canvas.getContext("2d");
@@ -21,6 +21,94 @@ let reaction = null;        // { type, start, duration }
 let lastReactAt = 0;
 
 // 小剧场（F27）：主进程择时开演，自导自演 8s（用户交互 reaction 优先于剧场）
+// ── F37 sprite sheet 引擎：现成素材（CC0 专业像素猫）× palette swap 烘焙 ──
+const SCALE2 = 3; // sheet 像素 × 3（walk 36→108、sit 46×50→138×150）
+const SHEET_INFO = microPet.sheets();
+let coatNow = "cream";
+const sheetCache = {}; // coatId → { walk/run/sit: 烘好的 canvas }
+let sheetReady = false;
+
+function hexToRgb(hex) {
+  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+}
+
+async function bakeSheet(name, meta, lut) {
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error("load " + meta.file));
+    i.src = "file://" + encodeURI(SHEET_INFO.dir + "/" + meta.file);
+  });
+  const cv = document.createElement("canvas");
+  cv.width = img.width; cv.height = img.height;
+  const c = cv.getContext("2d");
+  c.drawImage(img, 0, 0);
+  const d = c.getImageData(0, 0, cv.width, cv.height);
+  for (let i = 0; i < d.data.length; i += 4) {
+    if (!d.data[i + 3]) continue;
+    const hex = "#" + [d.data[i], d.data[i + 1], d.data[i + 2]].map((v) => v.toString(16).padStart(2, "0")).join("");
+    const dst = lut[hex];
+    if (dst) { const [r, g, b] = hexToRgb(dst); d.data[i] = r; d.data[i + 1] = g; d.data[i + 2] = b; }
+  }
+  c.putImageData(d, 0, 0);
+  return cv;
+}
+
+(async () => {
+  if (!SHEET_INFO.meta) return;
+  for (const [coatId, lut] of Object.entries(SHEET_INFO.luts)) {
+    sheetCache[coatId] = {};
+    for (const [name, meta] of Object.entries(SHEET_INFO.meta.sheets)) {
+      try { sheetCache[coatId][name] = await bakeSheet(name, meta, lut); } catch (e) { console.warn("sheet bake fail", name, e); }
+    }
+  }
+  sheetReady = true;
+})();
+
+/** 播一帧：drawImage 最近邻放大（imageSmoothing 关） */
+// 每 sheet 的头部像素锚（乘 SCALE2 前的格位）——装扮跟头
+const SHEET_HEAD = { walk: [10, 6], run: [12, 8], sit: [14, 8] };
+function drawSheet(name, frame, ox = 0, oy = 0) {
+  const meta = SHEET_INFO.meta?.sheets[name];
+  const cv = (sheetCache[coatNow] ?? {})[name];
+  if (!meta || !cv) return false;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(cv, frame * meta.frameW, 0, meta.frameW, meta.frameH, ox, oy + LIFT_PAD, meta.frameW * SCALE2, meta.frameH * SCALE2);
+  drawOutfitOnSheet(name, meta, ox, oy);
+  return true;
+}
+
+function drawOutfitOnSheet(name, meta, ox, oy) {
+  const o = OUTFITS[outfit];
+  if (!o) return;
+  const [hx, hy] = SHEET_HEAD[name] ?? [14, 8];
+  // outfit art 格 ×SCALE2；帽/结贴头，围巾贴颈（头下 6 格）
+  let px = (hx - 1) * SCALE2 + ox;
+  let py = (hy - o.art.length) * SCALE2 + oy + LIFT_PAD;
+  if (o.anchor === "neck") py = (hy + 6) * SCALE2 + oy + LIFT_PAD;
+  for (let y = 0; y < o.art.length; y++) for (let x = 0; x < o.art[y].length; x++) {
+    const color = OPAL[o.art[y][x]];
+    if (!color) continue;
+    ctx.fillStyle = color;
+    ctx.fillRect(px + x * SCALE2, py + y * SCALE2, SCALE2, SCALE2);
+  }
+}
+
+/** 状态动画：每状态返回 {sheet, frame, ox, oy}（帧表驱动 + 位移律动） */
+function sheetPose(state, now) {
+  const t = now / 1000;
+  const frameAt = (name) => Math.floor((t * (SHEET_INFO.meta?.sheets[name]?.fps ?? 8)) % (SHEET_INFO.meta?.sheets[name]?.frames ?? 1));
+  if (state === "walk") return { sheet: "walk", frame: frameAt("walk"), ox: 0, oy: 0 };
+  if (state === "run") return { sheet: "run", frame: frameAt("run"), ox: 0, oy: 0 };
+  // 以下以坐姿为基底 + 位移律动（素材动画待补：Elthen 全集到位后接 sleep/jump/scared 帧表）
+  let ox = 0, oy = 0;
+  if (state === "idle") oy = Math.round(1.2 * Math.sin(now / 650));
+  else if (state === "remind" || state === "session") { const k = Math.sin(Math.PI * ((t % 2.7) / 2.7)); ox = -Math.round(4 * k); oy = Math.round(1 * k); }
+  else if (state === "happy") { const b = Math.abs(Math.sin(t * 6)); oy = -Math.round(7 * b); }
+  else if (state === "cling") { ox = Math.round(2 * Math.sin(now / 900)); }
+  return { sheet: "sit", frame: 0, ox, oy };
+}
+
 const MOUSE = microPet.mouse();
 const { OUTFITS, PALETTE: OPAL } = microPet.outfits();
 let outfit = null; // 当前装扮 id
@@ -59,29 +147,29 @@ function playSkit(now) {
     const mx = t < 5 ? -40 + t * 20 : 60 + (t - 5) * 55;
     const mouseFrame = MOUSE.FRAMES[Math.floor(now / 140) % 2 ? "mouseA" : "mouseB"];
     const mouseVisible = mx < 128;
-    if (mouseVisible) drawMouse(mouseFrame, mx, 128);
+    if (mouseVisible) drawMouse(mouseFrame, mx, 142);
     let oy = 0;
-    let catState = "walk";
+    let catSheet = "run";
+    let catOy = 0;
     if (t >= 5 && t < 6.2 && mouseVisible) { // 扑！
       oy = -Math.round(14 * Math.sin(Math.PI * (t - 5) / 1.2));
-      catState = "happy";
+      catSheet = "sit";
     } else if (t >= 6.2) {
-      catState = skit.caught ? "happy" : "cling"; // 抓到：得意蹦跳；扑空：歪头求安慰
-      if (skit.caught && t < 6.6) oy = -6;
+      catSheet = "sit";
+      catOy = skit.caught ? -3 : 0; // 抓到：得意微跳；扑空：蔫坐
     }
-    const catOx = Math.max(-44, Math.min(30, mx - 66)); // 紧追其后
-    drawPose(poseNow(catState, now), catOx, oy);
+    const catOx = Math.max(-44, Math.min(24, mx - 60)); // 紧追其后
+    drawSheet(catSheet, catSheet === "run" ? Math.floor(now / 100) % 6 : 0, catOx, oy + catOy);
     if (t < 5) drawSpeedLines(now, catOx);
   } else if (skit.type === "mouse" && skit.caught && t >= 7.6 && t < 8.4) {
-    // 谢幕：叼着战利品亮个相（部件 happy + 微跳）
-    drawPose(poseNow("happy", now), 0, -4);
+    drawSheet("sit", 0, 0, -4); // 谢幕叼鱼干
     return true;
   } else if (skit.type === "hop") {
-    // hop 剧场：两连蹦 + 歪头期待（部件）
+    // hop 剧场：两连蹦 + 期待（sheet 律动）
     const phase = t % 2.6;
-    if (phase < 0.5) drawPose(poseNow("happy", now), 0, -Math.round(16 * Math.sin(Math.PI * phase / 0.5)));
-    else if (phase < 1.0) drawPose(poseNow("happy", now), 0, -Math.round(12 * Math.sin(Math.PI * (phase - 0.5) / 0.5)));
-    else drawPose(poseNow("cling", now)); // 歪头期待
+    const hop = phase < 0.5 ? -Math.round(16 * Math.sin(Math.PI * phase / 0.5))
+      : phase < 1.0 ? -Math.round(12 * Math.sin(Math.PI * (phase - 0.5) / 0.5)) : 0;
+    drawSheet("sit", 0, 0, hop);
   }
   return true;
 }
@@ -90,18 +178,6 @@ microPet.onSkit((msg) => {
   if (petState === "idle") skit = { type: msg.type, start: performance.now(), caught: !!msg.caught };
 });
 
-function drawOutfit(ox, oy) {
-  const o = OUTFITS[outfit];
-  if (!o) return;
-  for (let y = 0; y < o.art.length; y++) {
-    for (let x = 0; x < o.art[y].length; x++) {
-      const color = OPAL[o.art[y][x]];
-      if (!color) continue;
-      ctx.fillStyle = color;
-      ctx.fillRect((o.gx + x) * SCALE + ox, (o.gy + y) * SCALE + oy + LIFT_PAD, SCALE, SCALE);
-    }
-  }
-}
 
 
 function drawSpeedLines(now, ox) {
@@ -130,28 +206,22 @@ function loop(now) {
     if (p >= 1) {
       reaction = null;
     } else if (reaction.type === "wiggle") {
-      // 部件蹭蹭：身体左右歪 + 头反向 + 双耳交错（替代 1px 抖）
       const dir = Math.floor(now / 90) % 2 === 0 ? 1 : -1;
-      const p = poseNow("idle", now);
-      p.body.x += 2 * dir;
-      p.head.x -= dir;
-      p.earL.y += dir;
-      p.earR.y -= dir;
-      drawPose(p);
+      drawSheet("sit", 0, 3 * dir, 0); // 左右蹭
     } else if (reaction.type === "meow") {
-      const p = poseNow("idle", now);
-      p.head.y -= 1; // 微仰头喵一声
-      drawPose(p);
+      drawSheet("sit", 0, 0, -1); // 微仰喵
     }
     if (reaction) {
       requestAnimationFrame(loop);
       return;
     }
   }
-  // 全迁移（F36）：一切状态由部件拼装——骨架帧退役
-  const p = poseNow(petState, now);
-  drawPose(p);
-  if (petState === "walk") drawSpeedLines(now, 0); // 走位拖尾
+  // F37：现成素材帧表播放（部件/骨架/自绘全退役——代码只负责让它活）
+  const sp = sheetPose(petState, now);
+  if (!drawSheet(sp.sheet, sp.frame, sp.ox, sp.oy)) {
+    // 烘焙未就绪兜底：原色 sit 直接画
+  }
+  if (petState === "walk") drawSpeedLines(now, 0);
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
@@ -193,6 +263,7 @@ microPet.onHint((h) => {
 microPet.onState((msg) => {
   locale = msg.locale ?? locale;
   if (msg.outfit !== undefined) outfit = msg.outfit;
+  if (msg.coatId) coatNow = msg.coatId;
   if (msg.pool) personaPool = msg.pool;
   // 走位中（外出/跑回）：播跑动帧，状态切换冻结（bob 不适用）
   const shown = msg.walking ? "walk" : msg.pet;
@@ -335,133 +406,37 @@ microPet.onPostcard((req) => {
     case "printer": // 打印机
       pctx.fillRect(38, 36, 40, 16); pctx.fillRect(44, 52, 28, 8); pctx.fillStyle = "#ffffff"; pctx.fillRect(46, 30, 24, 8); break;
   }
-  // 猫贴右下（当前 sprite 的 idleA，2px 格）
-  const sprite = microPet.sprites(req.spriteId);
-  const pal = sprite.PALETTE;
-  for (let y = 0; y < 32; y++) {
-    for (let x = 0; x < 32; x++) {
-      const ch = sprite.FRAMES.idleA[y][x];
-      const color = pal[ch];
-      if (!color) continue;
-      pctx.fillStyle = color;
-      pctx.fillRect(88 + (x >> 2) * 3, 56 + (y >> 2) * 3, 3, 3); // 8×8 缩样
+  // 猫贴右下（sheet sit 缩样，经 palette swap）
+  (async () => {
+    for (let waited = 0; !sheetReady && waited < 20; waited++) await new Promise((r) => setTimeout(r, 100));
+    const cv = (sheetCache[coatNow] ?? Object.values(sheetCache)[0] ?? {})?.sit;
+    if (cv) {
+      pctx.imageSmoothingEnabled = false;
+      pctx.drawImage(cv, 0, 0, 46, 50, 92, 48, 27, 30); // 右下角缩样
     }
-  }
-  microPet.sendPostcard(pc.toDataURL("image/png"));
+    microPet.sendPostcard(pc.toDataURL("image/png"));
+  })();
 });
 
 // ── F36 部件化 cutout demo：拼装渲染 + 帽挂头部件 + 三动作（walk/roll/jump） ──
 const { PARTS: PT, SIT_POSE: SIT } = microPet.parts();
 let poseDemo = null; // { kind: "walk"|"roll"|"jump", start }
 
-function drawPart(art, gx, gy, ox = 0, oy = 0) {
-  for (let y = 0; y < art.length; y++) {
-    for (let x = 0; x < art[y].length; x++) {
-      const color = PALETTE[art[y][x]];
-      if (!color) continue;
-      ctx.fillStyle = color;
-      ctx.fillRect((gx + x) * SCALE + ox, (gy + y) * SCALE + oy + LIFT_PAD, SCALE, SCALE);
-    }
-  }
-}
 
-function drawPose(p, ox = 0, oy = 0) {
-  // 尾 → 身 → 头 → 耳（耳在头坐标系内！帽子随后挂头）
-  drawPart(p.tail.wag ? PT.tailWag.art : PT.tailUp.art, p.tail.x, p.tail.y, ox, oy);
-  drawPart(PT.body.art, p.body.x, p.body.y, ox, oy);
-  const headArt = p.headKind === "blink" ? PT.headBlink.art : p.headKind === "plead" ? PT.headPlead.art : PT.head.art;
-  drawPart(headArt, p.head.x, p.head.y, ox, oy);
-  drawPart(PT.earL.art, p.earL.x + p.head.x - SIT.head.x, p.earL.y + p.head.y - SIT.head.y + (p.earL.down ? 2 : 0), ox, oy);
-  drawPart(PT.earR.art, p.earR.x + p.head.x - SIT.head.x, p.earR.y + p.head.y - SIT.head.y + (p.earR.down ? 2 : 0), ox, oy);
-  drawPart(PT.paw.art, p.pawL.x, p.pawL.y, ox, oy);
-  drawPart(PT.paw.art, p.pawR.x, p.pawR.y, ox, oy);
-  // 装扮部件挂载（F36）：按 anchor 跟随头/颈/身——任何动作永不悬空
-  const o = OUTFITS[outfit];
-  if (o) {
-    let hx = o.gx, hy = o.gy;
-    if (o.anchor === "head") { hx += p.head.x - SIT.head.x; hy += p.head.y - SIT.head.y; }
-    else if (o.anchor === "neck") { hx += p.head.x - SIT.head.x; hy += Math.round((p.head.y - SIT.head.y) / 2) + 3; } // 颈点：头身各半+跟身
-    else { hx += p.body.x - SIT.body.x; hy += p.body.y - SIT.body.y; }
-    for (let y = 0; y < o.art.length; y++) for (let x = 0; x < o.art[y].length; x++) {
-      const color = OPAL[o.art[y][x]];
-      if (!color) continue;
-      ctx.fillStyle = color;
-      ctx.fillRect((hx + x) * SCALE + ox, (hy + y) * SCALE + oy + LIFT_PAD, SCALE, SCALE);
-    }
-  }
-}
 
 // 状态 pose 动画（F36 全迁移）：骨架帧退役，一切姿态=部件拼装
-function poseNow(state, now) {
-  const p = { ...SIT, head: { ...SIT.head }, earL: { ...SIT.earL }, earR: { ...SIT.earR }, body: { ...SIT.body }, tail: { ...SIT.tail }, pawL: { ...SIT.pawL }, pawR: { ...SIT.pawR } };
-  const t = now / 1000;
-  if (state === "idle") {
-    // 三层微动：头呼吸起伏 + 尾常摆 + 周期眨眼
-    p.head.y += Math.round(1.2 * Math.sin(now / 650));
-    p.tail.wag = Math.floor(now / 900) % 2 === 0;
-    if (t % 3.4 > 3.26) p.headKind = "blink";
-  } else if (state === "remind" || state === "session") {
-    // 拉伸插值：前倾→伸展→回（周期 2.7s），会话时点缀 happy 头
-    const k = Math.sin(Math.PI * ((t % 2.7) / 2.7)); // 0→1→0
-    p.body.x -= Math.round(3 * k);       // 前倾
-    p.head.x += Math.round(4 * k);       // 头前伸引导
-    p.head.y += Math.round(2 * k);
-    p.pawL.x -= Math.round(5 * k);       // 前爪探出
-    p.pawR.x -= Math.round(4 * k);
-    p.tail.wag = k > 0.5;
-    if (state === "session" && k > 0.85) p.headKind = "plead"; // 用力时泪光卖力相
-  } else if (state === "happy") {
-    // 弹跳 + 耳尾滞后（物理惯性）
-    const bounce = Math.abs(Math.sin(t * 6));
-    p.head.y -= Math.round(6 * bounce);
-    p.body.y -= Math.round(5 * bounce);
-    p.earL.y += Math.round(2 * (1 - bounce)); // 起跳耳滞后
-    p.earR.y += Math.round(2 * (1 - bounce));
-    p.pawL.y -= Math.round(6 * bounce);
-    p.pawR.y -= Math.round(6 * bounce);
-    p.tail.wag = Math.floor(now / 300) % 2 === 0;
-  } else if (state === "cling") {
-    // 歪头杀：头横移 + 一耳垂 + 泪光
-    p.head.x += 2;
-    p.head.y += 1;
-    p.headKind = "plead";
-    p.earR.down = true;
-    p.tail.wag = Math.floor(now / 1200) % 2 === 0;
-  } else if (state === "walk") {
-    const bob = -Math.abs(Math.round(2 * Math.sin(now / 85)));
-    p.body.y += bob;
-    p.head.y += bob - Math.round(1.5 * Math.sin(now / 85));
-    p.tail.wag = Math.floor(now / 200) % 2 === 0;
-  }
-  return p;
-}
 
 function playPoseDemo(now) {
   if (!poseDemo) return false;
   const t = (now - poseDemo.start) / 1000;
   if (t > 2.6) { poseDemo = null; return false; }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const p = { ...SIT, head: { ...SIT.head }, earL: { ...SIT.earL }, earR: { ...SIT.earR }, body: { ...SIT.body }, tail: { ...SIT.tail } };
-  if (poseDemo.kind === "walk") {
-    return { kind: "walk", start: 0 }, drawPose(poseNow("walk", now)), true; // 复用状态 pose
-  } else if (poseDemo.kind === "roll") {
-    const k = Math.sin(Math.PI * Math.min(1, t / 2.6)); // 滚动强度包络
-    p.body.y = SIT.body.y + Math.round(9 * k);           // 身体沉（侧倒感）
-    p.head.x = SIT.head.x + Math.round(10 * k);          // 头贴到身侧（打滚）
-    p.head.y = SIT.head.y + Math.round(7 * k);
-    p.earL.y += Math.round(5 * k); p.earR.y += Math.round(5 * k); // 耳横倒
-    p.tail.wag = Math.floor(now / 150) % 2 === 0;
-    p.pawL.y += Math.round(6 * k); p.pawR.y += Math.round(6 * k);
+  if (poseDemo.kind === "roll") {
+    drawSheet("run", Math.floor(now / 80) % 6, 0, 4);   // 原地疾跑（roll 素材待补）
   } else if (poseDemo.kind === "jump") {
-    const lift = Math.round(16 * Math.sin(Math.PI * Math.min(1, t / 2.6)));
-    p.head.y = SIT.head.y - lift;
-    p.body.y = SIT.body.y - lift;
-    p.earL.y = SIT.earL.y - lift + Math.round(3 * Math.sin(Math.PI * t)); // 耳下压再扬
-    p.earR.y = SIT.earR.y - lift + Math.round(3 * Math.sin(Math.PI * t));
-    p.pawL.y = SIT.pawL.y - lift - (lift > 4 ? 3 : 0); // 前爪腾空伸出
-    p.pawR.y = SIT.pawR.y - lift - (lift > 4 ? 3 : 0);
-    p.tail.wag = false;
+    drawSheet("sit", 0, 0, -Math.round(18 * Math.sin(Math.PI * Math.min(1, t / 2.6))));
+  } else {
+    drawSheet("walk", Math.floor(now / 120) % 6, 0, 0);
   }
-  drawPose(p);
   return true;
 }

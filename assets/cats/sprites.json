@@ -1,0 +1,16 @@
+{
+  "source": "Shepardskin cat sprites (CC0 1.0) — https://opengameart.org/content/cat-sprites",
+  "sheets": {
+    "walk": { "file": "walk.png", "frameW": 36, "frameH": 30, "frames": 6, "fps": 8 },
+    "run":   { "file": "run.png",   "frameW": 40, "frameH": 34, "frames": 6, "fps": 10 },
+    "sit":   { "file": "sit.png",   "frameW": 46, "frameH": 50, "frames": 1, "fps": 1 }
+  },
+  "anchors": { "headX": 14, "headY": 8 },
+  "paletteSwap": {
+    "#a475a0": "body",
+    "#383838": "dark",
+    "#8f34a0": "stripe",
+    "#1c1c1c": "outline",
+    "#5fa030": "eye"
+  }
+}
