@@ -54,7 +54,7 @@ contextBridge.exposeInMainWorld("microPet", {
     ipcRenderer.sendSync("pet-sheets-meta") as {
       meta: { sheets: Record<string, { file: string; frameW: number; frameH: number; frames: number; fps: number }>; anchors: { headX: number; headY: number }; paletteSwap: Record<string, string> } | null;
       luts: Record<string, Record<string, string>>;
-      dir: string;
+      pngs: Record<string, string>;
     },
   petClick: () => ipcRenderer.send("pet-click"),
   // 气泡占位通知（F34）：idle 小窗时动态扩窗容纳气泡，根治「喵～被截」

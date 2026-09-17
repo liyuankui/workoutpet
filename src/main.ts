@@ -552,7 +552,12 @@ function main() {
         if (dst) luts[coat.id]![srcHex] = dst as string;
       }
     }
-    e.returnValue = { meta, luts, dir };
+    // PNG 以 dataURL 供渲染端（Chromium file:// 读不了 asar 归档——打包后猫隐身的根因）
+    const pngs: Record<string, string> = {};
+    for (const [name, m] of Object.entries(((meta as { sheets?: Record<string, { file: string }> })?.sheets ?? {}))) {
+      try { pngs[name] = "data:image/png;base64," + readFileSync(join(dir, m.file)).toString("base64"); } catch { /* 单张缺不致命 */ }
+    }
+    e.returnValue = { meta, luts, pngs };
   });
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
   ipcMain.on("pet-postcard-data", (_e, dataUrl: string) => {

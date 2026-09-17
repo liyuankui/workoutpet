@@ -37,7 +37,7 @@ async function bakeSheet(name, meta, lut) {
     const i = new Image();
     i.onload = () => resolve(i);
     i.onerror = () => reject(new Error("load " + meta.file));
-    i.src = "file://" + encodeURI(SHEET_INFO.dir + "/" + meta.file);
+    i.src = SHEET_INFO.pngs[name]; // dataURL（asar 内 file:// 不可读）
   });
   const cv = document.createElement("canvas");
   cv.width = img.width; cv.height = img.height;
