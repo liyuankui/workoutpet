@@ -419,7 +419,6 @@ microPet.onPostcard((req) => {
 });
 
 // ── F36 部件化 cutout demo：拼装渲染 + 帽挂头部件 + 三动作（walk/roll/jump） ──
-const { PARTS: PT, SIT_POSE: SIT } = microPet.parts();
 let poseDemo = null; // { kind: "walk"|"roll"|"jump", start }
 
 
