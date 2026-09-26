@@ -22,7 +22,7 @@ let lastReactAt = 0;
 
 // 小剧场（F27）：主进程择时开演，自导自演 8s（用户交互 reaction 优先于剧场）
 // ── F37 sprite sheet 引擎：现成素材（CC0 专业像素猫）× palette swap 烘焙 ──
-const SCALE2 = 3; // sheet 像素 × 3（walk 36→108、sit 46×50→138×150）
+const SCALE2 = 2; // sheet 像素 × 2（sit 46×50→92×100，回旧版手感；Kyle 反馈块头偏大）
 const SHEET_INFO = microPet.sheets();
 let coatNow = "cream";
 const sheetCache = {}; // coatId → { walk/run/sit: 烘好的 canvas }
@@ -51,6 +51,15 @@ async function bakeSheet(name, meta, lut) {
     if (dst) { const [r, g, b] = hexToRgb(dst); d.data[i] = r; d.data[i + 1] = g; d.data[i + 2] = b; }
   }
   c.putImageData(d, 0, 0);
+  // 自校验：换色后目标主色应占大头；仍大量源主色=LUT 未命中（告警留迹，可见优先）
+  let hit = 0, total = 0;
+  for (let i = 0; i < d.data.length; i += 4) {
+    if (!d.data[i + 3]) continue;
+    total++;
+    const hex = "#" + [d.data[i], d.data[i + 1], d.data[i + 2]].map((v) => v.toString(16).padStart(2, "0")).join("");
+    if (lut[hex]) hit++;
+  }
+  if (total > 0 && hit / total < 0.5) console.warn("sheet LUT 命中率低:", name, Math.round(hit / total * 100) + "%");
   return cv;
 }
 
@@ -72,8 +81,10 @@ function drawSheet(name, frame, ox = 0, oy = 0) {
   const meta = SHEET_INFO.meta?.sheets[name];
   const cv = (sheetCache[coatNow] ?? {})[name];
   if (!meta || !cv) return false;
+  if (!Number.isFinite(meta.frameW) || !Number.isFinite(meta.frameH) || meta.frameW <= 0 || meta.frameH <= 0) return false; // 参数异常宁可不画，禁整图展开
+  const f = Number.isFinite(frame) ? Math.max(0, Math.min(Math.floor(frame), meta.frames - 1)) : 0; // 帧钳制
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(cv, frame * meta.frameW, 0, meta.frameW, meta.frameH, ox, oy + LIFT_PAD, meta.frameW * SCALE2, meta.frameH * SCALE2);
+  ctx.drawImage(cv, f * meta.frameW, 0, meta.frameW, meta.frameH, ox, oy + LIFT_PAD, meta.frameW * SCALE2, meta.frameH * SCALE2);
   drawOutfitOnSheet(name, meta, ox, oy);
   return true;
 }
@@ -144,10 +155,10 @@ function playSkit(now) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (skit.type === "mouse") {
     // 老鼠横穿：前 5s 匀速走完全程 2/3，后段加速逃命出画——全程猫鼠同框
-    const mx = t < 5 ? -40 + t * 20 : 60 + (t - 5) * 55;
+    const mx = t < 5 ? -36 + t * 13 : 29 + (t - 5) * 40;
     const mouseFrame = MOUSE.FRAMES[Math.floor(now / 140) % 2 ? "mouseA" : "mouseB"];
     const mouseVisible = mx < 128;
-    if (mouseVisible) drawMouse(mouseFrame, mx, 142);
+    if (mouseVisible) drawMouse(mouseFrame, mx, 96);
     let oy = 0;
     let catSheet = "run";
     let catOy = 0;
@@ -158,7 +169,7 @@ function playSkit(now) {
       catSheet = "sit";
       catOy = skit.caught ? -3 : 0; // 抓到：得意微跳；扑空：蔫坐
     }
-    const catOx = Math.max(-44, Math.min(24, mx - 60)); // 紧追其后
+    const catOx = Math.max(-30, Math.min(12, mx - 44)); // 紧追其后
     drawSheet(catSheet, catSheet === "run" ? Math.floor(now / 100) % 6 : 0, catOx, oy + catOy);
     if (t < 5) drawSpeedLines(now, catOx);
   } else if (skit.type === "mouse" && skit.caught && t >= 7.6 && t < 8.4) {
