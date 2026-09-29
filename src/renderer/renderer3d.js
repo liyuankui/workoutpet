@@ -97,8 +97,9 @@ function playClip(name) {
 }
 function setPet(state) {
   petState = state;
-  const map = { idle: "idle", walk: "walk", run: "run", remind: "alert", session: "attack", happy: "happy", cling: "hurt" };
-  if (!playClip(map[state] ?? "idle")) petState = state; // GLB 无此 clip 时律动兜底
+  // Kenney Cube Pets clip 契约：remind/session=gesture-positive（来，跟我做）、happy=dance、cling=gesture-negative（委屈卖萌）
+  const map = { idle: "idle", walk: "walk", run: "run", remind: "gesture-positive", session: "gesture-positive", happy: "dance", cling: "gesture-negative" };
+  if (!playClip(map[state] ?? "idle")) petState = state; // clip 缺时律动兜底
 }
 
 // 占位律动（无 GLB clip 时表达活性）
