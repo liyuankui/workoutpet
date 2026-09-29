@@ -57,14 +57,20 @@ function buildPlaceholderCat() {
     if (texUrl) {
       const tex = await new THREE.TextureLoader().loadAsync(texUrl);
       tex.colorSpace = THREE.SRGBColorSpace;
-      let missing = false;
+      tex.flipY = false; // GLTF 贴图语义不翻转——默认 true 曾致 UV 上下镜像采进黑区（黑猫根因）
+      let patched = 0;
       catRoot.traverse((o) => {
         if (o.isMesh) {
-          const mats = Array.isArray(o.material) ? o.material : [o.material];
-          for (const m of mats) if (!m.map) { m.map = tex; m.needsUpdate = true; missing = true; }
+          // 桌宠卡通风：MeshBasicMaterial 贴图原色直出（不受光照单位影响——
+          // MeshStandard+物理光照单位曾把 Kenney 灰紫猫压成黑影，官方预览即无光照平色）
+          const old = Array.isArray(o.material) ? o.material[0] : o.material;
+          const m = new THREE.MeshBasicMaterial({ map: tex });
+          m.userData = old?.userData ?? {};
+          o.material = m;
+          patched++;
         }
       });
-      if (missing) console.log("[3d] 外置贴图已补（colormap）");
+      console.log(`[3d] 已切换 BasicMaterial + 贴图（${patched} mesh）`);
     }
     mixer = new THREE.AnimationMixer(catRoot);
     for (const clip of gltf.animations) clips[clip.name.toLowerCase()] = clip;
@@ -124,6 +130,38 @@ function applyCoat(id) {
       m.userData.coatId = id;
     }
   });
+}
+
+// ---------- 3D 配饰：子节点挂骨骼，动画自动跟随（dance 转头帽随头转） ----------
+let outfitNode = null;
+function buildHat3D() {
+  const g = new THREE.Group();
+  const crown = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.13, 0.15, 0.14, 10),
+    new THREE.MeshStandardMaterial({ color: "#f5c07a", roughness: 0.85 }),
+  );
+  const brim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.24, 0.24, 0.03, 12),
+    new THREE.MeshStandardMaterial({ color: "#d99b4e", roughness: 0.85 }),
+  );
+  brim.position.y = -0.07;
+  g.add(crown, brim);
+  return g;
+}
+window.__hatPos = () => (outfitNode ? outfitNode.getWorldPosition(new THREE.Vector3()).toArray().map((v) => +v.toFixed(3)) : null);
+function applyOutfit3D(id) {
+  if (outfitNode) { outfitNode.parent?.remove(outfitNode); outfitNode = null; }
+  if (!id || !catRoot) return;
+  // Kenney cube 猫为头身一体：挂 body 主体节点（按节点名定位——「最高 mesh」启发曾误挂立尾）
+  let body = null;
+  catRoot.traverse((o) => { if (o.name === "body") body = o; });
+  if (!body) return;
+  outfitNode = id === "hat" ? buildHat3D() : null;
+  if (outfitNode) {
+    outfitNode.position.set(0.28, 0.34, 0);
+    outfitNode.rotation.z = -0.12; // 微歪戴
+    body.add(outfitNode);
+  }
 }
 
 // ---------- 状态 → 动画/律动 ----------
