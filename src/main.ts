@@ -55,6 +55,8 @@ interface AppConfig {
   telemetry?: boolean;
   /** 宠物（cat/bunny…，缺省 cat） */
   pet?: string;
+  /** 3D 渲染层 spike（true=three.js 版页面） */
+  render3d?: boolean;
   /** 顺延重试间隔分钟（P1：超时未完成 → 顺延非跳过） */
   retryMin?: number;
   /** 连续跳过多少次猫赖着撒娇（0 = 永不） */
@@ -229,7 +231,8 @@ function main() {
     }, 500);
   });
 
-  win.loadFile(join(APP_ROOT, "src", "renderer", "index.html")).catch((err) =>
+  const page = readConfig().render3d ? "renderer3d.html" : "index.html";
+  win.loadFile(join(APP_ROOT, "src", "renderer", page)).catch((err) =>
     console.error("[micro-pet] renderer 加载失败:", err),
   );
   win.webContents.on("did-finish-load", () => { blog("renderer 加载成功"); broadcast(); });
@@ -560,6 +563,12 @@ function main() {
     e.returnValue = { meta, luts, pngs };
   });
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
+  ipcMain.on("pet-glb", (e) => {
+    try {
+      const b = readFileSync(join(app.getAppPath(), "assets", "models", "cat.glb"));
+      e.returnValue = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+    } catch { e.returnValue = null; }
+  });
   ipcMain.on("pet-postcard-data", (_e, dataUrl: string) => {
     try {
       mkdirSync(POSTCARDS_DIR, { recursive: true });

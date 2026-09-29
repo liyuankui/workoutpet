@@ -49,6 +49,8 @@ contextBridge.exposeInMainWorld("microPet", {
   },
   mouse: () => ({ PALETTE: MOUSE_PALETTE, FRAMES: MOUSE_FRAMES, W: MOUSE_W, H: MOUSE_H }),
   outfits: () => ({ OUTFITS, PALETTE: OUTFIT_PALETTE }),
+  // 3D spike：GLB 模型（ArrayBuffer；main 读盘绕 asar 限制，无模型返回 null 走占位猫）
+  glb: () => ipcRenderer.sendSync("pet-glb") as ArrayBuffer | null,
   // F37 sprite sheet：main 读盘（sandbox 禁 node:fs）→ sendSync 一次性取元数据+LUT+资产目录
   sheets: () =>
     ipcRenderer.sendSync("pet-sheets-meta") as {

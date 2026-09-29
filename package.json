@@ -6,15 +6,18 @@
   "type": "module",
   "main": "dist/main.cjs",
   "scripts": {
-    "build": "bun run build:main && bun run build:preload",
+    "build": "bun run build:main && bun run build:preload && bun run build:renderer3d",
     "build:main": "bun build src/main.ts --target=node --format=cjs --external electron --outfile=dist/main.cjs",
     "build:preload": "bun build src/preload.ts --target=node --format=cjs --external electron --outfile=dist/preload.cjs",
     "start": "bun run build && electron .",
     "test": "bun test",
     "typecheck": "bun x tsc --noEmit",
-    "report": "bun run src/bin/micro-pet.ts report"
+    "report": "bun run src/bin/micro-pet.ts report",
+    "build:renderer3d": "bun build src/renderer/renderer3d.js --target=browser --outfile=dist/renderer3d.bundle.js"
   },
   "dependencies": {
+    "@types/three": "^0.186.0",
+    "three": "^0.186.1",
     "zod": "^3.25.0"
   },
   "devDependencies": {
