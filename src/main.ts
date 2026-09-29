@@ -231,7 +231,7 @@ function main() {
     }, 500);
   });
 
-  const page = readConfig().render3d ? "renderer3d.html" : "index.html";
+  const page = readConfig().render3d === false ? "index.html" : "renderer3d.html"; // 默认 3D（v0.16 起），config.render3d:false 回 2D
   win.loadFile(join(APP_ROOT, "src", "renderer", page)).catch((err) =>
     console.error("[micro-pet] renderer 加载失败:", err),
   );
@@ -563,6 +563,10 @@ function main() {
     e.returnValue = { meta, luts, pngs };
   });
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
+  ipcMain.on("pet-tex", (e) => {
+    try { e.returnValue = "data:image/png;base64," + readFileSync(join(app.getAppPath(), "assets", "models", "Textures", "colormap.png")).toString("base64"); }
+    catch { e.returnValue = null; }
+  });
   ipcMain.on("pet-glb", (e) => {
     try {
       const b = readFileSync(join(app.getAppPath(), "assets", "models", "cat.glb"));
@@ -909,6 +913,13 @@ function main() {
           },
         },
         {
+          label: t.renderMode,
+          submenu: [
+            { label: "3D 🐱", type: "radio", checked: readConfig().render3d !== false, click: () => { saveConfig({ render3d: true }); relaunchPage(); } },
+            { label: "2D 🐈", type: "radio", checked: readConfig().render3d === false, click: () => { saveConfig({ render3d: false }); relaunchPage(); } },
+          ],
+        },
+        {
           // 语言切换入口只显示目标语言自名（中文环境见 English / 英文环境见 简体中文）：
           // 当前语言的标题想切的人看不懂；默认仍跟随系统 locale
           label: oppositeLocaleLabel(currentLocale()),
@@ -930,6 +941,14 @@ function main() {
         { label: t.quit, click: () => app.quit() },
       ]),
     );
+  }
+
+  function relaunchPage() {
+    const page = readConfig().render3d === false ? "index.html" : "renderer3d.html";
+    win.webContents.loadFile(join(APP_ROOT, "src", "renderer", page)).catch((err) =>
+      console.error("[micro-pet] renderer 重载失败:", err),
+    );
+    buildTrayMenu();
   }
 
   function setLocale(l: Locale) {

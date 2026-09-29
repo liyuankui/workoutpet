@@ -10,7 +10,7 @@ const titleEl = bubble.querySelector(".title");
 const cueEl = bubble.querySelector(".cue");
 
 // ---------- three 场景（透明、轻光照） ----------
-const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true }); // toDataURL/明信片可读
 renderer.setSize(96, 110, false);
 renderer.setPixelRatio(window.devicePixelRatio || 1);
 const scene = new THREE.Scene();
@@ -52,6 +52,20 @@ function buildPlaceholderCat() {
   if (buf) {
     const gltf = await new GLTFLoader().parseAsync(buf, "");
     catRoot = gltf.scene;
+    // Kenney GLB 外置 Textures/colormap.png：parse 内相对 URI 失败，用 dataURL 手动补
+    const texUrl = microPet.texDataUrl && microPet.texDataUrl();
+    if (texUrl) {
+      const tex = await new THREE.TextureLoader().loadAsync(texUrl);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      let missing = false;
+      catRoot.traverse((o) => {
+        if (o.isMesh) {
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          for (const m of mats) if (!m.map) { m.map = tex; m.needsUpdate = true; missing = true; }
+        }
+      });
+      if (missing) console.log("[3d] 外置贴图已补（colormap）");
+    }
     mixer = new THREE.AnimationMixer(catRoot);
     for (const clip of gltf.animations) clips[clip.name.toLowerCase()] = clip;
     console.log("[3d] GLB loaded, clips:", Object.keys(clips).join(","));
@@ -74,49 +88,42 @@ const COAT3D = {
   siamese: ["#e8d5b5", "#5a4636", "#f6ecd9"],
 };
 let coatNow = "cream";
+/** 贴图重着色：保留纹理明暗细节，色相/饱和度换成花色（缓存每花色一份 CanvasTexture） */
 function applyCoat(id) {
-  const pal = COAT3D[id] ?? COAT3D.cream;
+  const base = new THREE.Color((COAT3D[id] ?? COAT3D.cream)[0]);
+  const bhsl = {}; base.getHSL(bhsl);
   catRoot?.traverse((o) => {
-    if (o.isMesh && o.material?.color) {
-      // 简化启发：按材质明暗映射三槽（spike 级；正式版模型定槽位）
-      const hsl = {};
-      o.material.color.getHSL(hsl);
-      o.material.color.set(hsl.l > 0.6 ? pal[2] : hsl.l < 0.4 ? pal[1] : pal[0]);
+    const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+    for (const m of mats) {
+      if (m.userData.coatId === id) continue;
+      if (!m.map) { m.color.copy(base); m.userData.coatId = id; continue; } // 无贴图：基色
+      if (!m.userData.origMap) m.userData.origMap = m.map;
+      const orig = m.userData.origMap;
+      m.userData.tinted ??= {};
+      if (!m.userData.tinted[id]) {
+        const img = orig.image;
+        const cv = document.createElement("canvas");
+        cv.width = img.width; cv.height = img.height;
+        const c = cv.getContext("2d");
+        c.drawImage(img, 0, 0);
+        const d = c.getImageData(0, 0, cv.width, cv.height);
+        for (let i = 0; i < d.data.length; i += 4) {
+          if (!d.data[i + 3]) continue;
+          const col = new THREE.Color((d.data[i] << 16) | (d.data[i + 1] << 8) | d.data[i + 2]);
+          const hsl = {}; col.getHSL(hsl);
+          const nc = new THREE.Color().setHSL(bhsl.h, bhsl.s, Math.min(0.92, Math.max(0.06, hsl.l * 0.85 + 0.10)));
+          d.data[i] = nc.r * 255; d.data[i + 1] = nc.g * 255; d.data[i + 2] = nc.b * 255;
+        }
+        c.putImageData(d, 0, 0);
+        const tex = new THREE.CanvasTexture(cv);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        m.userData.tinted[id] = tex;
+      }
+      m.map = m.userData.tinted[id];
+      m.needsUpdate = true;
+      m.userData.coatId = id;
     }
   });
-}
-
-// ---------- 3D 配饰：子节点挂骨骼，动画自动跟随（dance 转头帽随头转） ----------
-let outfitNode = null;
-function buildHat3D() {
-  const g = new THREE.Group();
-  const crown = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.13, 0.15, 0.14, 10),
-    new THREE.MeshStandardMaterial({ color: "#f5c07a", roughness: 0.85 }),
-  );
-  const brim = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.24, 0.24, 0.03, 12),
-    new THREE.MeshStandardMaterial({ color: "#d99b4e", roughness: 0.85 }),
-  );
-  brim.position.y = -0.07;
-  g.add(crown, brim);
-  return g;
-}
-window.__hatPos = () => (outfitNode ? outfitNode.getWorldPosition(new THREE.Vector3()).toArray().map((v) => +v.toFixed(3)) : null);
-
-function applyOutfit3D(id) {
-  if (outfitNode) { outfitNode.parent?.remove(outfitNode); outfitNode = null; }
-  if (!id || !catRoot) return;
-  // Kenney cube 猫为头身一体：挂 body 主体节点（节点动画带动帽随动；立尾曾误判为头——教训：按节点名不按高度）
-  let body = null;
-  catRoot.traverse((o) => { if (o.name === "body") body = o; });
-  if (!body) return;
-  outfitNode = id === "hat" ? buildHat3D() : null;
-  if (outfitNode) {
-    outfitNode.position.set(0.28, 0.34, 0); // body 局部坐标：头在顶前部
-    outfitNode.rotation.z = -0.12; // 微歪戴
-    body.add(outfitNode);
-  }
 }
 
 // ---------- 状态 → 动画/律动 ----------

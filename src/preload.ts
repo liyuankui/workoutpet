@@ -51,6 +51,8 @@ contextBridge.exposeInMainWorld("microPet", {
   outfits: () => ({ OUTFITS, PALETTE: OUTFIT_PALETTE }),
   // 3D spike：GLB 模型（ArrayBuffer；main 读盘绕 asar 限制，无模型返回 null 走占位猫）
   glb: () => ipcRenderer.sendSync("pet-glb") as ArrayBuffer | null,
+  // 3D 外置贴图 dataURL（Kenney GLB 的 Textures/colormap.png，asar 同理）
+  texDataUrl: () => ipcRenderer.sendSync("pet-tex") as string | null,
   // F37 sprite sheet：main 读盘（sandbox 禁 node:fs）→ sendSync 一次性取元数据+LUT+资产目录
   sheets: () =>
     ipcRenderer.sendSync("pet-sheets-meta") as {

@@ -35,7 +35,8 @@
     "autoLaunch": "开机自启动",
     "demoPoseWalk": "部件demo：走路",
     "demoPoseRoll": "部件demo：打滚（看帽子！）",
-    "demoPoseJump": "部件demo：跳跃"
+    "demoPoseJump": "部件demo：跳跃",
+    "renderMode": "形象（3D/2D）"
   },
   "bubble": {
     "letsGo": "一起来",

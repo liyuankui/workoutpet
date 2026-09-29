@@ -35,7 +35,8 @@
     "autoLaunch": "Launch at login",
     "demoPoseWalk": "Parts demo: walk",
     "demoPoseRoll": "Parts demo: roll (watch the hat!)",
-    "demoPoseJump": "Parts demo: jump"
+    "demoPoseJump": "Parts demo: jump",
+    "renderMode": "Render mode (3D/2D)"
   },
   "bubble": {
     "letsGo": "let's go",

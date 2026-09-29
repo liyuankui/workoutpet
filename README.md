@@ -6,7 +6,7 @@
 
 | 静候 | 提醒（一起来） | 打卡成功 |
 |:---:|:---:|:---:|
-| ![idle](docs/screenshot-idle.png) | ![remind](docs/screenshot-remind.png) | ![happy](docs/screenshot-happy.png) |
+| ![idle](docs/screenshot-3d-idle.png) | ![dance](docs/screenshot-3d-dance.png) | ![hat](docs/screenshot-3d-hat.png) |
 
 ## 什么是微运动？
 
@@ -42,7 +42,8 @@ brew install --cask liyuankui/tap/micro-pet
 - **撒娇赖留**：连续跳过 3 次猫就不走了，赖在原地换着软话等你——点它一下即「和解打卡」
 - **平时点猫 = 随机互动**：蹭蹭 / 跳一下 / 喵～ / 打滚（500ms 节流）
 - 中英双语：跟随系统语言，托盘可切换
-- **专业像素猫形象**（v0.15）：美术素材来自 [Shepardskin cat sprites](https://opengameart.org/content/cat-sprites)（CC0），启动时 palette swap 烘焙 7 花色——代码不再画猫，只负责让它活
+- **3D 立体猫**（v0.16 默认）：[Kenney Cube Pets](https://kenney.nl/assets/cube-pets) 猫（CC0，8 个骨骼动画：走路/奔跑/跳舞/吃东西/手势），three.js 渲染带光照；配饰挂骨骼节点随动画起舞；花色为贴图重着色（7 色）
+- **2D 像素猫**（可选）：托盘「形象」切回；素材来自 [Shepardskin cat sprites](https://opengameart.org/content/cat-sprites)（CC0），palette swap 7 花色
 - **猫宇宙**（v0.11）：7 只猫 = 花色 ×7 × 性情 ×4（粘人精/活泼好动/老成持重/胆小谨慎）× 人设背景——性情真实改变行为（漫游频率/撒娇阈值/剧场偏好/台词池）；托盘「猫舍」用小鱼干迎接新猫（8🐟 同价）、「这只猫」看人设卡
 - **自己会出去玩**：在家待一阵就出屏溜达（3-15 分钟），该提醒时跑回来找你
 - **下班去旅行**：静默时段若小鱼干够 2 条（自动带便当）就出远门——回来举着像素明信片找你（托盘「旅行相册」翻阅收藏）；景点随性格：活泼猫专挑远地稀罕景，胆小猫只去隔壁工位/打印室；重启不丢旅行
