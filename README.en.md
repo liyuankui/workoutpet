@@ -6,7 +6,7 @@
 
 | Idle | Reminder (let's go) | Checked in |
 |:---:|:---:|:---:|
-| ![idle](docs/screenshot-idle-en.png) | ![remind](docs/screenshot-remind-en.png) | ![happy](docs/screenshot-happy-en.png) |
+| ![idle](docs/screenshot-3d-idle.png) | ![dance](docs/screenshot-3d-dance.png) | ![hat](docs/screenshot-3d-hat.png) |
 
 ## What are micro-exercises?
 
