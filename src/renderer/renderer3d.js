@@ -86,6 +86,39 @@ function applyCoat(id) {
   });
 }
 
+// ---------- 3D 配饰：子节点挂骨骼，动画自动跟随（dance 转头帽随头转） ----------
+let outfitNode = null;
+function buildHat3D() {
+  const g = new THREE.Group();
+  const crown = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.13, 0.15, 0.14, 10),
+    new THREE.MeshStandardMaterial({ color: "#f5c07a", roughness: 0.85 }),
+  );
+  const brim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.24, 0.24, 0.03, 12),
+    new THREE.MeshStandardMaterial({ color: "#d99b4e", roughness: 0.85 }),
+  );
+  brim.position.y = -0.07;
+  g.add(crown, brim);
+  return g;
+}
+window.__hatPos = () => (outfitNode ? outfitNode.getWorldPosition(new THREE.Vector3()).toArray().map((v) => +v.toFixed(3)) : null);
+
+function applyOutfit3D(id) {
+  if (outfitNode) { outfitNode.parent?.remove(outfitNode); outfitNode = null; }
+  if (!id || !catRoot) return;
+  // Kenney cube 猫为头身一体：挂 body 主体节点（节点动画带动帽随动；立尾曾误判为头——教训：按节点名不按高度）
+  let body = null;
+  catRoot.traverse((o) => { if (o.name === "body") body = o; });
+  if (!body) return;
+  outfitNode = id === "hat" ? buildHat3D() : null;
+  if (outfitNode) {
+    outfitNode.position.set(0.28, 0.34, 0); // body 局部坐标：头在顶前部
+    outfitNode.rotation.z = -0.12; // 微歪戴
+    body.add(outfitNode);
+  }
+}
+
 // ---------- 状态 → 动画/律动 ----------
 let petState = "idle";
 let walking = false;
@@ -135,6 +168,7 @@ microPet.onState((msg) => {
     applyCoat(coatNow);
   }
   walking = !!msg.walking;
+  applyOutfit3D(msg.outfit === undefined ? null : msg.outfit); // 广播带装扮（hat/scarf/bow，3D 版先支持 hat）
   setPet(walking ? "walk" : msg.pet);
   // 气泡文案（复用 2D 逻辑精简版）
   const s = microPet.strings(msg.locale ?? "zh-CN");
