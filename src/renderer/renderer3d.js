@@ -164,6 +164,61 @@ function applyOutfit3D(id) {
   }
 }
 
+// 诊断钩子（动画排查）：新 mixer 对照 + track 数据完整性
+window.__animDebug = (name = "idle") => {
+  if (!mixer || !clips[name]) return "no mixer/clip";
+  const t0 = clips[name].tracks[0];
+  const m2 = new THREE.AnimationMixer(catRoot);
+  const a = m2.clipAction(clips[name]);
+  a.reset().play();
+  const r = catRoot.getObjectByName("root");
+  const before = r ? r.position.y.toFixed(4) : "?";
+  for (let i = 0; i < 30; i++) m2.update(1 / 30);
+  const after = r ? r.position.y.toFixed(4) : "?";
+  a.stop();
+  return {
+    trackName: t0.name, times: t0.times.length, values: t0.values.length,
+    time: a.time.toFixed(2), rootPosY: before + "→" + after,
+    rootFound: !!r, rootParent: r?.parent?.name ?? "-",
+  };
+};
+
+// 命名绑定复现（排查用）：group>box，track 'probe.position'——复刻 GLB 绑定方式
+window.__namedAnim = () => {
+  const g = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+  box.name = "probe";
+  g.add(box);
+  scene.add(g);
+  const track = new THREE.VectorKeyframeTrack("probe.position", [0, 1], [0, 0, 0, 0, 0.5, 0]);
+  const clip = new THREE.AnimationClip("named", 1, [track]);
+  const m = new THREE.AnimationMixer(g);
+  const a = m.clipAction(clip);
+  a.reset().play();
+  for (let i = 0; i < 30; i++) m.update(1 / 30);
+  const y = box.position.y.toFixed(4);
+  a.stop();
+  scene.remove(g);
+  return "named box.y=" + y + (parseFloat(y) > 0.3 ? " ✅ 命名绑定正常" : " ❌ 命名绑定坏");
+};
+
+// 最小动画复现（排查用）：非 GLB 的自建 clip + mixer
+window.__minAnim = () => {
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+  box.name = "probe";
+  scene.add(box);
+  const track = new THREE.VectorKeyframeTrack(".position", [0, 1], [0, 0, 0, 0, 0.5, 0]);
+  const clip = new THREE.AnimationClip("probe", 1, [track]);
+  const m = new THREE.AnimationMixer(box);
+  const a = m.clipAction(clip);
+  a.reset().play();
+  for (let i = 0; i < 30; i++) m.update(1 / 30);
+  const y = box.position.y.toFixed(4);
+  a.stop();
+  scene.remove(box);
+  return "time=" + a.time.toFixed(2) + " box.y=" + y + (parseFloat(y) > 0.3 ? " ✅ mixer 工作正常" : " ❌ mixer 坏了");
+};
+
 // ---------- 状态 → 动画/律动 ----------
 let petState = "idle";
 let walking = false;
