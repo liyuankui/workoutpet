@@ -255,6 +255,12 @@ function loop() {
   const dt = clock.getDelta();
   const t = clock.elapsedTime;
   if (curClipName && clips[curClipName] && catRoot) driveAnim(catRoot, clips[curClipName], dt);
+  // 交互动作叠加位移（反应/小剧场/演示）
+  const actOffset = tickAct3d(performance.now());
+  if (catRoot) {
+    catRoot.position.x = actOffset ? actOffset[0] / 100 : 0; // 100≈场景单位比例
+    catRoot.position.y = actOffset ? actOffset[1] / 100 : 0;
+  }
   tickPlaceholder(dt, t);
   renderer.render(scene, camera);
 }
@@ -262,6 +268,8 @@ loop();
 
 // ---------- 行为事件（与 2D 版同源） ----------
 microPet.onState((msg) => {
+  locale3d = msg.locale ?? locale3d;
+  if (msg.pool) personaPool = msg.pool;
   if (msg.coatId && msg.coatId !== coatNow) {
     coatNow = msg.coatId;
     applyCoat(coatNow);
@@ -292,12 +300,94 @@ function hideBubble() {
   if (bubbleOn) { bubbleOn = false; microPet.bubbleBox(false); }
 }
 
-// ---------- 点击（raycast → 打卡/反应走主进程） ----------
-const ray = new THREE.Raycaster();
-const ptr = new THREE.Vector2();
-canvas.addEventListener("click", () => {
-  microPet.petClick(); // 提醒/撒娇=打卡，idle=反应池（主进程语义不变）
+// ---------- 交互动作（F34 补 3D 版）：反应池/小剧场/演示/拖动 ----------
+let act3d = null; // { kind: reaction|skit|pose, type, start }——临时动作覆盖层
+let dragSt = null; // 拖动 { startX, startY, moved }
+
+function playAct(kind, type) {
+  const prevState = curClipName;
+  act3d = { kind, type, start: performance.now(), resume: prevState };
+  // 动作期 clip 选择
+  const clipMap = { jump: "dance", roll: "run", wiggle: "idle", meow: "gesture-positive", hop: "dance", mouse: "run", walk: "walk" };
+  playClip(clipMap[type] ?? "idle");
+}
+
+/** 临时动作的位移律动（在 clip 动画之上叠加）——返回 [ox, oy] 或 null 结束 */
+function tickAct3d(now) {
+  if (!act3d) return null;
+  const t = (now - act3d.start) / 1000;
+  let ox = 0, oy = 0;
+  const finish = () => { const r = act3d?.resume ?? "idle"; act3d = null; playClip(r === "walk-demo" ? "idle" : r); return null; };
+  if (act3d.type === "jump") {
+    if (t > 1.2) { return finish(); }
+    oy = Math.round(46 * Math.sin(Math.PI * Math.min(1, t / 1.2))); // 18px 弧线 ×2.56 dpr≈46
+  } else if (act3d.type === "roll") {
+    if (t > 1.8) { return finish(); }
+    // 原地打滚：横向摆 + 下沉
+    ox = Math.round(8 * Math.sin(t * 6));
+    oy = -Math.round(4 * Math.abs(Math.sin(t * 3)));
+  } else if (act3d.type === "wiggle") {
+    if (t > 0.7) { return finish(); }
+    ox = Math.round(4 * (Math.floor(now / 90) % 2 ? 1 : -1));
+  } else if (act3d.type === "meow") {
+    if (t > 0.9) { return finish(); }
+    oy = Math.round(2 * Math.sin(Math.PI * t / 0.9));
+  } else if (act3d.type === "hop") { // 小剧场蹦跳 8s：两连蹦×3
+    if (t > 8) { return finish(); }
+    const ph = t % 2.6;
+    oy = ph < 0.5 ? Math.round(40 * Math.sin(Math.PI * ph / 0.5)) : ph < 1.0 ? Math.round(30 * Math.sin(Math.PI * (ph - 0.5) / 0.5)) : 0;
+  } else if (act3d.type === "mouse") { // 小剧场抓老鼠：追-扑-蔫
+    if (t > 8) { return finish(); }
+    ox = t < 5 ? Math.round(-20 + 8 * Math.sin(t * 3)) : t < 6.2 ? Math.round(14 * Math.sin(Math.PI * (t - 5) / 1.2)) - 10 : -6;
+    if (t >= 6.2 && t < 6.5) oy = -4;
+  } else if (act3d.type === "walk-demo") {
+    if (t > 2.6) { return finish(); }
+  }
+  return [ox, oy];
+}
+
+microPet.onReaction((type) => {
+  if (["wiggle", "jump", "meow", "roll"].includes(type)) {
+    playAct("reaction", type);
+    if (type === "meow") {
+      const strs = microPet.strings(locale3d);
+      const pool = (strs.bubble.meowPools || {})[personaPool] || [strs.meow];
+      showBubble(pool[Math.floor(Math.random() * pool.length)], "");
+      setTimeout(() => hideBubble(), 900);
+    }
+  }
 });
-// 猫被 hover 时 3D 拾取高亮（留）——spike 用整 canvas 可点即可
+microPet.onSkit((msg) => { playAct("skit", msg.type); });
+microPet.onPoseDemo((kind) => { playAct("pose", kind === "walk" ? "walk-demo" : kind); });
+
+// 拖动（复用 2D 判定与主进程坐标权威）
+canvas.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0) return;
+  dragSt = { startX: e.clientX, startY: e.clientY, moved: false };
+});
+window.addEventListener("pointermove", (e) => {
+  if (!dragSt) return;
+  if (!dragSt.moved) {
+    if (!microPet.shouldDrag(dragSt.startX, dragSt.startY, e.clientX, e.clientY)) return;
+    dragSt.moved = true;
+    microPet.dragStart();
+  }
+  microPet.dragMove();
+});
+function endDrag3d() {
+  if (!dragSt) return;
+  if (dragSt.moved) setTimeout(() => { act3d = null; }, 100); // 拖后不打断，仅清
+  dragSt = null;
+}
+window.addEventListener("pointerup", endDrag3d);
+window.addEventListener("pointercancel", endDrag3d);
+
+// ---------- 点击（→ 主进程：提醒/撒娇=打卡，idle=反应池） ----------
+canvas.addEventListener("click", () => {
+  if (dragSt?.moved) return; // 拖动尾随 click 忽略
+  microPet.petClick();
+});
+
+let locale3d = "zh-CN";
 
 microPet.ready();
