@@ -88,8 +88,31 @@ try {
   await sleep(300);
   record("点击链", true, "petClick 无异常");
 
-  // 6. 打卡全链：FORCE remind（改隔离 config interval 极短不可行——直接 evaluate 触发主进程 FORCE？走 CDP 模拟不可达 main。用行为级：等待自然 remind 太久——SKIP）
-  record("打卡全链", "skip", "需快时钟 env，e2e-lite 覆盖渲染/交互面");
+  // 6. 全动作通道（6 clip 帧差）
+  for (const c of ["idle", "walk", "run", "dance", "gesture-positive", "gesture-negative"]) {
+    await send(`setPet('${c}')`);
+    await sleep(150); const a = await canvasStats();
+    await sleep(260); const b = await canvasStats();
+    record(`clip:${c}`, a !== b, "两时刻帧差");
+  }
+  // 7. 交互通道（反应/小剧场）
+  for (const [n, trig] of [["act:jump", "playAct('reaction','jump')"], ["act:roll", "playAct('reaction','roll')"], ["act:hop", "playAct('skit','hop')"], ["act:mouse", "playAct('skit','mouse')"]] as const) {
+    await send(trig);
+    await sleep(120); const a = await canvasStats();
+    await sleep(280); const b = await canvasStats();
+    record(n, a !== b, "帧差");
+  }
+  // 8. 明信片落盘链
+  await send("(() => { const pc = document.createElement('canvas'); pc.width=8; pc.height=8; const c = pc.getContext('2d'); c.fillStyle='#f5c07a'; c.fillRect(0,0,8,8); microPet.sendPostcard(pc.toDataURL('image/png')); return 1; })()");
+  await sleep(1000);
+  let pcOk = false;
+  try { pcOk = readFileSync(join(HOME, "postcards")).length >= 0; } catch { pcOk = false; }
+  try { const d = execSync(`ls ${JSON.stringify(join(HOME, "postcards"))}`).toString().trim(); pcOk = d.length > 0; } catch { pcOk = false; }
+  record("明信片落盘", pcOk, "postcards/ 有文件");
+  // 9. 健壮性：非法 clip/动作不崩
+  record("非法输入健壮", await send("(() => { try { setPet('bogus'); playClip('bogus'); playAct('x','bogus'); return 1; } catch { return 0; } })()") === 1, "bogus 不抛");
+  // 10. 打卡全链（快时钟归专用 e2e-long，此处 SKIP）
+  record("打卡全链", "skip", "需快时钟 env（e2e-long 专用）");
 } catch (e) {
   record("套件自身", false, String(e));
 } finally {

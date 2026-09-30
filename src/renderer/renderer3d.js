@@ -360,6 +360,41 @@ microPet.onReaction((type) => {
 microPet.onSkit((msg) => { playAct("skit", msg.type); });
 microPet.onPoseDemo((kind) => { playAct("pose", kind === "walk" ? "walk-demo" : kind); });
 
+// F33 明信片（3D 版）：景点剪影底 + 本页 canvas 实时快照——旅行照片感
+microPet.onPostcard((req) => {
+  const pc = document.createElement("canvas");
+  pc.width = 128; pc.height = 96;
+  const pctx = pc.getContext("2d");
+  const sp = req.spot;
+  pctx.fillStyle = sp.sky; pctx.fillRect(0, 0, 128, 96);
+  pctx.fillStyle = sp.land; pctx.fillRect(0, 64, 128, 32);
+  pctx.fillStyle = "rgba(255,255,255,0.7)";
+  pctx.fillRect(8, 8, 2, 2); pctx.fillRect(24, 14, 2, 2); pctx.fillRect(110, 10, 2, 2);
+  pctx.fillStyle = sp.land;
+  switch (sp.shape) {
+    case "pagoda": pctx.fillRect(56, 24, 16, 40); pctx.fillRect(52, 34, 24, 4); pctx.fillRect(48, 54, 32, 4); pctx.fillRect(62, 14, 4, 10); break;
+    case "towers": pctx.fillRect(30, 30, 12, 34); pctx.fillRect(48, 16, 16, 48); pctx.fillRect(70, 36, 14, 28); pctx.fillRect(90, 24, 12, 40); break;
+    case "bamboo": for (const [x, h] of [[40, 34], [50, 42], [62, 30], [76, 40]]) { pctx.fillRect(x, 64 - h, 4, h); pctx.fillRect(x - 4, 66 - h, 12, 3); } break;
+    case "wall": pctx.fillRect(20, 44, 88, 20); for (let x = 20; x < 108; x += 12) pctx.fillRect(x, 38, 7, 6); break;
+    case "palace": pctx.fillRect(38, 48, 52, 16); pctx.fillRect(30, 44, 68, 4); pctx.fillRect(46, 36, 36, 8); pctx.fillRect(58, 26, 12, 10); break;
+    case "snow": pctx.fillStyle = "#f0f4f8"; pctx.fillRect(0, 60, 128, 4); pctx.fillStyle = sp.land; pctx.fillRect(24, 40, 8, 20); pctx.fillRect(48, 30, 10, 30); pctx.fillRect(78, 44, 8, 16); break;
+    case "beach": pctx.fillRect(88, 44, 5, 20); pctx.fillRect(76, 40, 28, 5); pctx.fillStyle = "#7fc8d8"; pctx.fillRect(0, 66, 60, 4); break;
+    case "desk": pctx.fillRect(34, 32, 44, 26); pctx.fillStyle = "#e8e4dc"; pctx.fillRect(38, 36, 36, 18); pctx.fillStyle = sp.land; pctx.fillRect(52, 58, 8, 5); pctx.fillRect(86, 48, 8, 10); break;
+    case "printer": pctx.fillRect(38, 36, 40, 16); pctx.fillRect(44, 52, 28, 8); pctx.fillStyle = "#ffffff"; pctx.fillRect(46, 30, 24, 8); break;
+    default: pctx.fillRect(40, 40, 50, 24); // island 等
+  }
+  // 右下角：当前 3D canvas 快照（preserveDrawingBuffer 已开，toDataURL 即照片）
+  try {
+    const shot = document.createElement("canvas");
+    shot.width = 96; shot.height = 110;
+    const sctx = shot.getContext("2d");
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(canvas, 0, 0, 96, 110);
+    pctx.drawImage(shot, 92, 48, 27, 31);
+  } catch { /* 快照失败不阻断落盘 */ }
+  microPet.sendPostcard(pc.toDataURL("image/png"));
+});
+
 // 拖动（复用 2D 判定与主进程坐标权威）
 canvas.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return;
