@@ -59,5 +59,7 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           NOTES=$(git log -1 --pretty=%B)
+          # 草稿门禁（2026-09-29 Kyle 拍板）：tag 只构建出 draft release——
+          # E2E 回归 + 用户确认后才 gh release edit --draft=false 发布（自动发版已停）
           gh release create "$GITHUB_REF_NAME" "micro-pet-${VERSION}-macos-arm64.zip" \
-            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes "$NOTES"
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes "$NOTES" --draft
