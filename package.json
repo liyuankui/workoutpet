@@ -13,7 +13,8 @@
     "test": "bun test",
     "typecheck": "bun x tsc --noEmit",
     "report": "bun run src/bin/micro-pet.ts report",
-    "build:renderer3d": "bun build src/renderer/renderer3d.js --target=browser --outfile=dist/renderer3d.bundle.js"
+    "build:renderer3d": "bun build src/renderer/renderer3d.js --target=browser --outfile=dist/renderer3d.bundle.js",
+    "e2e": "bun run e2e/e2e.ts"
   },
   "dependencies": {
     "@types/three": "^0.186.0",
