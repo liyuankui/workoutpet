@@ -1,5 +1,4 @@
 // 人设注册表（F32）：花色 × 性情 × 名字 × 背景小传——开箱即用的六只猫
-import type { Coat } from "./coats";
 import type { Personality } from "./personalities";
 
 export interface CatPersona {
@@ -88,11 +87,10 @@ export function starterCats(rand: () => number = Math.random): string[] {
   return ["xiaoju", extra[Math.floor(rand() * extra.length)]!.id];
 }
 
-/** 供注册表校验：coats/personalities 引用完整性 */
-export function validateRefs(coats: Coat[], personalities: Personality[]): string[] {
+/** 供注册表校验：personalities 引用完整性 */
+export function validateRefs(personalities: Personality[]): string[] {
   const problems: string[] = [];
   for (const c of CAT_PERSONAS) {
-    if (!coats.some((x) => x.id === c.coatId)) problems.push(`${c.id}: 未知花色 ${c.coatId}`);
     if (!personalities.some((x) => x.id === c.personalityId)) problems.push(`${c.id}: 未知性情 ${c.personalityId}`);
   }
   return problems;

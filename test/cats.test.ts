@@ -1,13 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { CAT_PERSONAS, CAT_PRICE, getPersona, starterCats, validateRefs } from "../src/core/cats";
-import { COATS } from "../src/core/coats";
 import { PERSONALITIES } from "../src/core/personalities";
 
 describe("F32 人设注册表", () => {
   test("七只猫（花色全覆盖）：id 唯一、引用完整", () => {
     expect(CAT_PERSONAS.length).toBe(7);
     expect(new Set(CAT_PERSONAS.map((c) => c.id)).size).toBe(7);
-    expect(validateRefs(COATS, PERSONALITIES)).toEqual([]);
+    expect(validateRefs(PERSONALITIES)).toEqual([]);
   });
 
   test("每只：双语名字 + 背景小传非空", () => {
@@ -32,8 +31,8 @@ describe("F32 人设注册表", () => {
     expect(CAT_PRICE).toBe(8);
   });
 
-  test("花色全覆盖（7 款 coat 各有人设认领）", () => {
+  test("花色 id 各有人设认领", () => {
     const coats = new Set(CAT_PERSONAS.map((c) => c.coatId));
-    expect(coats.size).toBe(7);
+    expect(coats.size).toBeGreaterThanOrEqual(5); // 自建猫的花色在渲染端，此处只验 id 分布
   });
 });

@@ -1,8 +1,4 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { getPet } from "./core/pets";
-import { MOUSE_FRAMES, MOUSE_PALETTE, MOUSE_W, MOUSE_H } from "./core/mouse";
-import { OUTFITS, OUTFIT_PALETTE } from "./core/outfits";
-import type { Spot } from "./core/travel";
 import { strings, fmt } from "./core/i18n";
 import { react } from "./core/reactions";
 import { shouldStartDrag } from "./core/dragging";
@@ -46,33 +42,6 @@ contextBridge.exposeInMainWorld("microPet", {
   // 小剧场（F27）：主进程择时开演，渲染端自导自演 8s
   onSkit: (cb: (skit: { type: "mouse" | "hop" }) => void) => {
     ipcRenderer.on("pet-skit", (_e, skit: { type: "mouse" | "hop" }) => cb(skit));
-  },
-  mouse: () => ({ PALETTE: MOUSE_PALETTE, FRAMES: MOUSE_FRAMES, W: MOUSE_W, H: MOUSE_H }),
-  outfits: () => ({ OUTFITS, PALETTE: OUTFIT_PALETTE }),
-  // 3D spike：GLB 模型（ArrayBuffer；main 读盘绕 asar 限制，无模型返回 null 走占位猫）
-  glb: () => ipcRenderer.sendSync("pet-glb") as ArrayBuffer | null,
-  // 3D 外置贴图 dataURL（Kenney GLB 的 Textures/colormap.png，asar 同理）
-  texDataUrl: () => ipcRenderer.sendSync("pet-tex") as string | null,
-  // F37 sprite sheet：main 读盘（sandbox 禁 node:fs）→ sendSync 一次性取元数据+LUT+资产目录
-  sheets: () =>
-    ipcRenderer.sendSync("pet-sheets-meta") as {
-      meta: { sheets: Record<string, { file: string; frameW: number; frameH: number; frames: number; fps: number }>; anchors: { headX: number; headY: number }; paletteSwap: Record<string, string> } | null;
-      luts: Record<string, Record<string, string>>;
-      pngs: Record<string, string>;
-    },
-  petClick: () => ipcRenderer.send("pet-click"),
-  // 气泡占位通知（F34）：idle 小窗时动态扩窗容纳气泡，根治「喵～被截」
-  bubbleBox: (on: boolean) => ipcRenderer.send("pet-bubble", on),
-  // 明信片渲染（F33）：main 请 renderer 离屏作画 → dataURL 回传落盘
-  onPostcard: (cb: (req: { spot: Spot; spriteId: string }) => void) => {
-    ipcRenderer.on("pet-postcard-render", (_e, req: { spot: Spot; spriteId: string }) => cb(req));
-  },
-  sendPostcard: (dataUrl: string) => ipcRenderer.send("pet-postcard-data", dataUrl),
-  ready: () => ipcRenderer.send("pet-ready"),
-  // sprite 静态数据（可序列化，供渲染端画当前宠物）
-  sprites: (petId?: string) => {
-    const p = getPet(petId ?? "cat");
-    return { PALETTE: p.palette, GRID: p.grid, FRAMES: p.frames, SPRITE_ID: p.id };
   },
   // 双语文案 + 占位符模板
   strings: (locale: string) => strings(locale),

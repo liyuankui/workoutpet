@@ -8,7 +8,6 @@ import exercisesJson from "./core/exercises.json";
 import { userPaths, readUserExercisesRaw } from "./core/userConfig";
 import { appendCheckIn, countToday, readDB, localDateKey, workdayStreak } from "./core/streak";
 import { renderReport } from "./core/report";
-import { COATS, getCoat } from "./core/coats";
 import { CAT_PERSONAS, CAT_PRICE, getPersona, starterCats } from "./core/cats";
 import { getPersonality } from "./core/personalities";
 import { fmt, isLocale, oppositeLocaleLabel, resolveLocale, strings, type Locale } from "./core/i18n";
@@ -233,7 +232,7 @@ function main() {
     }, 500);
   });
 
-  const page = readConfig().render3d === false ? "index.html" : "renderer3d.html"; // 默认 3D（v0.16 起），config.render3d:false 回 2D
+  const page = "renderer3d.html";
   win.loadFile(join(APP_ROOT, "src", "renderer", page)).catch((err) =>
     console.error("[micro-pet] renderer 加载失败:", err),
   );
@@ -545,38 +544,7 @@ function main() {
   }, 1_000);
 
   // ---------- IPC ----------
-  ipcMain.on("pet-sheets-meta", (e) => {
-    // F37：sprite 元数据+palette LUT+资产目录（sandbox preload 禁 node:fs，由 main 供）
-    const dir = join(app.getAppPath(), "assets", "cats");
-    let meta: unknown = null;
-    try { meta = JSON.parse(readFileSync(join(dir, "sprites.json"), "utf8")); } catch { /* 渲染端兜底原色 */ }
-    const swap = ((meta as { paletteSwap?: Record<string, string> })?.paletteSwap ?? {}) as Record<string, string>;
-    const luts: Record<string, Record<string, string>> = {};
-    for (const coat of COATS) {
-      luts[coat.id] = {};
-      for (const [srcHex, slot] of Object.entries(swap)) {
-        const dst = slot === "body" ? coat.palette.O : slot === "eye" ? coat.palette.E : slot === "stripe" ? coat.stripe : coat.palette.K;
-        if (dst) luts[coat.id]![srcHex] = dst as string;
-      }
-    }
-    // PNG 以 dataURL 供渲染端（Chromium file:// 读不了 asar 归档——打包后猫隐身的根因）
-    const pngs: Record<string, string> = {};
-    for (const [name, m] of Object.entries(((meta as { sheets?: Record<string, { file: string }> })?.sheets ?? {}))) {
-      try { pngs[name] = "data:image/png;base64," + readFileSync(join(dir, m.file)).toString("base64"); } catch { /* 单张缺不致命 */ }
-    }
-    e.returnValue = { meta, luts, pngs };
-  });
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
-  ipcMain.on("pet-tex", (e) => {
-    try { e.returnValue = "data:image/png;base64," + readFileSync(join(app.getAppPath(), "assets", "models", "Textures", "colormap.png")).toString("base64"); }
-    catch { e.returnValue = null; }
-  });
-  ipcMain.on("pet-glb", (e) => {
-    try {
-      const b = readFileSync(join(app.getAppPath(), "assets", "models", "cat.glb"));
-      e.returnValue = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
-    } catch { e.returnValue = null; }
-  });
   ipcMain.on("pet-postcard-data", (_e, dataUrl: string) => {
     try {
       mkdirSync(POSTCARDS_DIR, { recursive: true });
@@ -882,7 +850,7 @@ function main() {
           submenu: CAT_PERSONAS.map((persona) => {
             const loc = currentLocale();
             const owned = inv.cats?.includes(persona.id) ?? false;
-            const coat = getCoat(persona.coatId);
+            const coat = { name: { "zh-CN": persona.coatId, en: persona.coatId } }; // 简化：coat 名从 id 直取
             const per = getPersonality(persona.personalityId);
             return {
               label: owned
@@ -914,7 +882,7 @@ function main() {
             const persona = activeCat();
             const loc = currentLocale();
             const per = getPersonality(persona.personalityId);
-            const coat = getCoat(persona.coatId);
+            const coat = { name: { "zh-CN": persona.coatId, en: persona.coatId } }; // 简化：coat 名从 id 直取
             win.showInactive();
             if (machine.pet === "idle") setSizeAnchored(FULL_W, FULL_H);
             win.webContents.send("pet-hint", {
@@ -923,13 +891,6 @@ function main() {
             });
             setTimeout(() => { if (machine.pet === "idle") setSizeAnchored(CAT_W, CAT_H); }, 5200);
           },
-        },
-        {
-          label: t.renderMode,
-          submenu: [
-            { label: "3D 🐱", type: "radio", checked: readConfig().render3d !== false, click: () => { saveConfig({ render3d: true }); relaunchPage(); } },
-            { label: "2D 🐈", type: "radio", checked: readConfig().render3d === false, click: () => { saveConfig({ render3d: false }); relaunchPage(); } },
-          ],
         },
         {
           // 语言切换入口只显示目标语言自名（中文环境见 English / 英文环境见 简体中文）：
@@ -956,7 +917,7 @@ function main() {
   }
 
   function relaunchPage() {
-    const page = readConfig().render3d === false ? "index.html" : "renderer3d.html";
+    const page = "renderer3d.html";
     win.webContents.loadFile(join(APP_ROOT, "src", "renderer", page)).catch((err) =>
       console.error("[micro-pet] renderer 重载失败:", err),
     );
