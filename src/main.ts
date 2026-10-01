@@ -57,6 +57,8 @@ interface AppConfig {
   pet?: string;
   /** 3D 渲染层 spike（true=three.js 版页面） */
   render3d?: boolean;
+  /** 工作时段漫游（v0.17 默认 false：安静哲学——上班猫坐镇不动，下班才出去） */
+  wanderWork?: boolean;
   /** 顺延重试间隔分钟（P1：超时未完成 → 顺延非跳过） */
   retryMin?: number;
   /** 连续跳过多少次猫赖着撒娇（0 = 永不） */
@@ -504,7 +506,8 @@ function main() {
 
     // F21 漫游驱动：仅 idle 在家时；提醒临近不出门；到期前 30s 或归期召回
     const remindDueAt = machine.pet === "idle" ? machine.lastCycleAt + cfgNow.intervalMs : null;
-    if (machine.pet === "idle" && !walking && !trayHidden) {
+    const wanderAllowed = schedule ? (readConfig().wanderWork === true) : true; // 窗内默认不出门（安静）
+    if (machine.pet === "idle" && !walking && !trayHidden && wanderAllowed) {
       if (roam.roaming && shouldRecall(roam, now, remindDueAt)) {
         roamRecall(remindDueAt !== null && remindDueAt - now <= 60_000 ? "提醒要来了，跑回去找你" : "玩够了");
       } else if (!roam.roaming && wantsRoam(roam, now)) {
@@ -512,7 +515,8 @@ function main() {
         else roamOut("在家待不住了");
       }
       // F27 小剧场：在家静坐且离提醒够远时随机开演（每小时 2-3 场，正戏优先）
-      if (wantsSkit(skit, now, { petIdle: true, visible: win.isVisible(), walking, roaming: roam.roaming, remindDueAt })) {
+      const skitAllowed = schedule ? (readConfig().wanderWork === true) : true; // 安静：工作时段不演
+      if (skitAllowed && wantsSkit(skit, now, { petIdle: true, visible: win.isVisible(), walking, roaming: roam.roaming, remindDueAt })) {
         const type = pickSkit(Math.random, getPersonality(activeCat().personalityId).mouseBias);
         skit = createSkit(now); // 下一场重新计时
         // 抓到老鼠 10%（变奖赏彩蛋）：真抓到叼来一条鱼干

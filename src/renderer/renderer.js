@@ -113,7 +113,7 @@ function sheetPose(state, now) {
   if (state === "run") return { sheet: "run", frame: frameAt("run"), ox: 0, oy: 0 };
   // 以下以坐姿为基底 + 位移律动（素材动画待补：Elthen 全集到位后接 sleep/jump/scared 帧表）
   let ox = 0, oy = 0;
-  if (state === "idle") oy = Math.round(1.2 * Math.sin(now / 650));
+  if (state === "idle") oy = 0; // v0.17 安静哲学：idle 真静止
   else if (state === "remind" || state === "session") { const k = Math.sin(Math.PI * ((t % 2.7) / 2.7)); ox = -Math.round(4 * k); oy = Math.round(1 * k); }
   else if (state === "happy") { const b = Math.abs(Math.sin(t * 6)); oy = -Math.round(7 * b); }
   else if (state === "cling") { ox = Math.round(2 * Math.sin(now / 900)); }

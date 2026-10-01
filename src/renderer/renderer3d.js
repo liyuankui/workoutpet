@@ -254,7 +254,8 @@ function loop() {
   requestAnimationFrame(loop);
   const dt = clock.getDelta();
   const t = clock.elapsedTime;
-  if (curClipName && clips[curClipName] && catRoot) driveAnim(catRoot, clips[curClipName], dt);
+  // v0.17 安静：idle 不播动画 clip（Kenney idle 有呼吸帧=干扰），只在非 idle 时驱动
+  if (curClipName && curClipName !== "idle" && clips[curClipName] && catRoot) driveAnim(catRoot, clips[curClipName], dt);
   // 交互动作叠加位移（反应/小剧场/演示）
   const actOffset = tickAct3d(performance.now());
   if (catRoot) {
@@ -311,6 +312,10 @@ function playAct(kind, type) {
   act3d = { kind, type, start: performance.now(), resume: stateMap[petState] ?? "idle" };
   // 动作期 clip 选择
   const clipMap = { jump: "dance", roll: "run", wiggle: "idle", meow: "gesture-positive", hop: "dance", mouse: "run", walk: "walk" };
+  // mouse 剧场的分段 clip：潜伏 sit → 追 run → 得手/蔫 sit
+  if (type === "mouse") {
+    setTimeout(() => { if (act3d?.type === "mouse") playClip("sit"); }, 3400); // 追完坐回
+  }
   playClip(clipMap[type] ?? "idle");
 }
 
@@ -334,14 +339,13 @@ function tickAct3d(now) {
   } else if (act3d.type === "meow") {
     if (t > 0.9) { return finish(); }
     oy = Math.round(2 * Math.sin(Math.PI * t / 0.9));
-  } else if (act3d.type === "hop") { // 小剧场蹦跳 8s：两连蹦×3
-    if (t > 8) { return finish(); }
-    const ph = t % 2.6;
-    oy = ph < 0.5 ? Math.round(10 * Math.sin(Math.PI * ph / 0.5)) : ph < 1.0 ? Math.round(8 * Math.sin(Math.PI * (ph - 0.5) / 0.5)) : 0;
-  } else if (act3d.type === "mouse") { // 小剧场抓老鼠：追-扑-蔫
-    if (t > 8) { return finish(); }
-    ox = t < 5 ? Math.round(-20 + 8 * Math.sin(t * 3)) : t < 6.2 ? Math.round(14 * Math.sin(Math.PI * (t - 5) / 1.2)) - 10 : -6;
-    if (t >= 6.2 && t < 6.5) oy = -4;
+  } else if (act3d.type === "hop") { // 蹦跳 5s（8s 太长）
+    if (t > 5) { return finish(); }
+    const ph = t % 2.2;
+    oy = ph < 0.4 ? Math.round(10 * Math.sin(Math.PI * ph / 0.4)) : ph < 0.8 ? Math.round(8 * Math.sin(Math.PI * (ph - 0.4) / 0.4)) : 0;
+  } else if (act3d.type === "mouse") { // 抓老鼠：run 追→4.5s 扑→6s 收
+    if (t > 6) { return finish(); }
+    if (t >= 4.5 && t < 5.5) oy = Math.round(10 * Math.sin(Math.PI * (t - 4.5)));
   } else if (act3d.type === "walk-demo") {
     if (t > 2.6) { return finish(); }
   }
