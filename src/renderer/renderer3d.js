@@ -127,7 +127,21 @@ function buildPlaceholderCat() {
   }
   catRoot.scale.setScalar(1.0);
   scene.add(catRoot);
+
+  // 闭眼（睡觉时显示）：两个暗色小面片贴在头部（cube 猫头在 body 前上方）
+  sleepEyes = new THREE.Group();
+  const eyeMat = new THREE.MeshBasicMaterial({ color: "#2a2520" });
+  const eyeGeo = new THREE.BoxGeometry(0.06, 0.015, 0.02);
+  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+  eyeL.position.set(0.30, 0.82, 0.09);
+  const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+  eyeR.position.set(0.30, 0.82, -0.09);
+  sleepEyes.add(eyeL, eyeR);
+  sleepEyes.visible = false;
+  catRoot.add(sleepEyes);
 })();
+
+let sleepEyes = null;
 
 // ---------- 花色换肤（材质基色替换——3D 比 LUT 干净） ----------
 const COAT3D = {
@@ -262,6 +276,18 @@ function loop() {
   if (catRoot && Math.abs(catRoot.rotation.z - targetZ) > 0.01) {
     catRoot.rotation.z += (targetZ - catRoot.rotation.z) * Math.min(1, dt * 8);
     catRoot.position.y += (targetY - catRoot.position.y) * Math.min(1, dt * 8);
+  }
+  // 睡觉动画（v0.17.1）：呼吸（body scale.y 慢波 ±2%）+ 闭眼显示
+  if (catRoot && petState === "idle") {
+    const breathe = 1 + Math.sin(t * 1.8) * 0.02; // 3.5s 周期，±2% 幅度
+    let bodyMesh = null;
+    catRoot.traverse((o) => { if (o.name === "body") bodyMesh = o; });
+    if (bodyMesh) bodyMesh.scale.y = breathe;
+    if (sleepEyes) sleepEyes.visible = true;
+  } else {
+    if (sleepEyes) sleepEyes.visible = false;
+    // 恢复 body scale
+    if (catRoot) catRoot.traverse((o) => { if (o.name === "body") o.scale.y = 1; });
   }
   // 交互动作叠加位移（反应/小剧场/演示）
   const actOffset = tickAct3d(performance.now());
