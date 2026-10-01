@@ -15,8 +15,8 @@ renderer.setSize(96, 110, false);
 renderer.setPixelRatio(window.devicePixelRatio || 1);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, 96 / 110, 0.1, 50);
-camera.position.set(0, 1.4, 3.2);
-camera.lookAt(0, 0.55, 0);
+camera.position.set(0, 1.3, 4.4); // 拉远 28%：静止猫顶距 ~18px，28px 跳弧全程可见（相机下移方案失败：反而把猫拉满画幅）
+camera.lookAt(0, 0.5, 0);
 scene.add(new THREE.AmbientLight(0xffffff, 0.85));
 const key = new THREE.DirectionalLight(0xfff2e0, 1.1);
 key.position.set(2, 3, 2);
@@ -320,7 +320,7 @@ function tickAct3d(now) {
   const finish = () => { const r = act3d?.resume ?? "idle"; act3d = null; playClip(r === "walk-demo" ? "idle" : r); return null; };
   if (act3d.type === "jump") {
     if (t > 1.2) { return finish(); }
-    oy = Math.round(46 * Math.sin(Math.PI * Math.min(1, t / 1.2))); // 18px 弧线 ×2.56 dpr≈46
+    oy = Math.round(11 * Math.sin(Math.PI * Math.min(1, t / 1.2))); // 弧高 11px=静止余量 13px 的安全值（46→28→11 三次实测收敛；3D 相机已拉远 d=4.4）
   } else if (act3d.type === "roll") {
     if (t > 1.8) { return finish(); }
     // 原地打滚：横向摆 + 下沉
@@ -335,7 +335,7 @@ function tickAct3d(now) {
   } else if (act3d.type === "hop") { // 小剧场蹦跳 8s：两连蹦×3
     if (t > 8) { return finish(); }
     const ph = t % 2.6;
-    oy = ph < 0.5 ? Math.round(40 * Math.sin(Math.PI * ph / 0.5)) : ph < 1.0 ? Math.round(30 * Math.sin(Math.PI * (ph - 0.5) / 0.5)) : 0;
+    oy = ph < 0.5 ? Math.round(10 * Math.sin(Math.PI * ph / 0.5)) : ph < 1.0 ? Math.round(8 * Math.sin(Math.PI * (ph - 0.5) / 0.5)) : 0;
   } else if (act3d.type === "mouse") { // 小剧场抓老鼠：追-扑-蔫
     if (t > 8) { return finish(); }
     ox = t < 5 ? Math.round(-20 + 8 * Math.sin(t * 3)) : t < 6.2 ? Math.round(14 * Math.sin(Math.PI * (t - 5) / 1.2)) - 10 : -6;

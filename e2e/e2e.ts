@@ -51,7 +51,9 @@ async function clickCat() {
   }
 }
 
-// ---------- 启动 ----------
+// ---------- 启动（先清运行实例：single-instance lock 会让新进程秒退）----------
+try { execSync("killall micro-pet 2>/dev/null"); } catch {}
+await sleep(1500);
 const proc = spawn(`${APP}/Contents/MacOS/micro-pet`, [`--remote-debugging-port=${PORT}`], {
   env: { ...process.env, MICROPET_HOME: HOME }, detached: true, stdio: "ignore",
 });
