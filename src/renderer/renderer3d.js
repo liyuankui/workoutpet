@@ -305,8 +305,10 @@ let act3d = null; // { kind: reaction|skit|pose, type, start }——临时动作
 let dragSt = null; // 拖动 { startX, startY, moved }
 
 function playAct(kind, type) {
-  const prevState = curClipName;
-  act3d = { kind, type, start: performance.now(), resume: prevState };
+  // resume 取「当前状态应播的 clip」而非 curClipName：连续触发两个动作时，
+  // 第二次的 resume 会捕获上一次的动作 clip（如 dance）→ 结束后 dance 无限循环（无休止真凶）
+  const stateMap = { idle: "idle", walk: "walk", run: "run", remind: "gesture-positive", session: "gesture-positive", happy: "dance", cling: "gesture-negative" };
+  act3d = { kind, type, start: performance.now(), resume: stateMap[petState] ?? "idle" };
   // 动作期 clip 选择
   const clipMap = { jump: "dance", roll: "run", wiggle: "idle", meow: "gesture-positive", hop: "dance", mouse: "run", walk: "walk" };
   playClip(clipMap[type] ?? "idle");

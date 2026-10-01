@@ -733,6 +733,10 @@ function main() {
                 win.showInactive();
                 handle({ type: "FORCE", now: Date.now() });
                 handle({ type: "PET", now: Date.now() }); // 直接进会话陪练
+                // 演示收尾：10s 自动提前结束（真实会话 30-60s 太长，演示像无休止）
+                setTimeout(() => {
+                  if (machine.pet === "session") handle({ type: "PET", now: Date.now() });
+                }, 10_000);
               },
             },
             {
@@ -742,8 +746,12 @@ function main() {
                 // 演示直入 cling（正常须经连续跳过积累；不写打卡数据）
                 machine = { ...machine, exercise: machine.exercise ?? balancedPick(exercises), pet: "cling", retryPending: false };
                 setSizeAnchored(FULL_W, FULL_H);
-                rlog("演示：撒娇赖留");
+                rlog("演示：撒娇赖留（12s 后自动和解）");
                 broadcast();
+                // 演示收尾：12s 自动 SLEEP（真实撒娇无超时、点猫和解——演示须有界）
+                setTimeout(() => {
+                  if (machine.pet === "cling") handle({ type: "SLEEP", now: Date.now() });
+                }, 12_000);
               },
             },
             { label: t.demoPoseWalk, click: () => { win.showInactive(); win.webContents.send("pet-pose-demo", "walk"); } },
