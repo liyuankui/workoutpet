@@ -254,8 +254,15 @@ function loop() {
   requestAnimationFrame(loop);
   const dt = clock.getDelta();
   const t = clock.elapsedTime;
-  // v0.17 安静：idle 不播动画 clip（Kenney idle 有呼吸帧=干扰），只在非 idle 时驱动
+  // v0.17 安静哲学：idle=睡觉（侧躺，真猫行为）；有事件时醒来起身
   if (curClipName && curClipName !== "idle" && clips[curClipName] && catRoot) driveAnim(catRoot, clips[curClipName], dt);
+  // 睡/醒过渡（0.4s lerp）：idle→躺（rotation.z→π/2 + 微降），非 idle→坐（rotation.z→0）
+  const targetZ = petState === "idle" ? Math.PI / 2 : 0;
+  const targetY = petState === "idle" ? -0.22 : 0;
+  if (catRoot && Math.abs(catRoot.rotation.z - targetZ) > 0.01) {
+    catRoot.rotation.z += (targetZ - catRoot.rotation.z) * Math.min(1, dt * 8);
+    catRoot.position.y += (targetY - catRoot.position.y) * Math.min(1, dt * 8);
+  }
   // 交互动作叠加位移（反应/小剧场/演示）
   const actOffset = tickAct3d(performance.now());
   if (catRoot) {

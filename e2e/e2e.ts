@@ -75,10 +75,12 @@ try {
   record("猫可见", pxN > 800, `不透明像素=${pxN}`);
   record("猫亮度", lum > 80, `均色亮度=${lum}（门槛 80）`);
 
-  // 3. idle 安静（v0.17 安静哲学：idle 应完全静止——帧完全相同才对）
+  // 3. idle 睡觉（v0.17：侧躺+完全静止）
   const a1 = await canvasStats(); await sleep(400); const b1 = await canvasStats();
   const idleStill = Buffer.compare(a1, b1) === 0;
-  record("idle 安静", idleStill, "两时刻帧相同（静止=不干扰工作）");
+  record("idle 睡觉(静止)", idleStill, "两时刻帧相同（睡觉=不干扰）");
+  const sleepZ = await send("(catRoot?.rotation.z * 180 / Math.PI).toFixed(0)");
+  record("idle 睡姿(侧躺)", Number(sleepZ) > 45, `rotation.z=${sleepZ}°`);
   // 3.5 remind 活跃（提醒时刻才动）
   await send("setPet('remind')"); await sleep(200);
   const rA = await canvasStats(); await sleep(400);
