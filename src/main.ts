@@ -325,7 +325,7 @@ function main() {
     const offX = Math.random() < 0.5 ? wa2.x - CAT_W - 12 : wa2.x + wa2.width + 12;
     const spot = spotId ? SPOTS.find((v) => v.id === spotId) : null;
     rlog(`出去玩（${spot ? `带便当去${spot.name["zh-CN"]}旅行` : why}，${Math.round((roam.backAt - Date.now()) / 60000)} 分钟内回）`);
-    walkTo(offX, y, 1200, () => win.hide());
+    // v0.18：猫永不离屏（Kyle：走出了屏幕之外）——漫游在原地进行（睡觉），不位移不隐藏
   }
 
 /** F33 旅行归来：请 renderer 作明信片落盘 + 举气泡（漫游召回与启动恢复两路共用） */
@@ -352,11 +352,9 @@ function main() {
   function roamRecall(why: string): void {
     if (!roam.roaming) return;
     const hidden = trayHidden;
-    if (!hidden) win.showInactive(); // 用户托盘隐藏时不现身（审计 H2）：静默回位；漫游召回正常现身
+    if (!hidden) win.showInactive();
     roam = { ...roam, roaming: false, nextRoamAt: Date.now() + nextHomeStay() };
-    rlog(`回家（${why}）${hidden ? " · 保持隐藏" : ""}`);
-    if (!hidden) walkTo(roam.homeX, roam.homeY, 1200);
-    else win.setPosition(roam.homeX, roam.homeY, false);
+    rlog(`回家（${why}）`);
     arriveFromTravel();
   }
 
@@ -940,7 +938,7 @@ function main() {
     if (stillSilent) {
       rlog(`恢复在途旅行 · ${spot?.name["zh-CN"] ?? "?"}`);
       roam = { ...roam, roaming: true, backAt: Date.now() + nextOutDuration(), homeX: win.getPosition()[0], homeY: win.getPosition()[1] };
-      win.hide(); // 仍在旅途
+      // v0.18：旅行恢复不隐藏——猫在屏上睡觉，归来举牌即可
     } else {
       rlog(`旅行归来（恢复）· ${spot?.name["zh-CN"] ?? "?"}`);
       // 等渲染端 ipc 监听就绪再归来（过早 send 会丢——明信片链依赖 renderer）
