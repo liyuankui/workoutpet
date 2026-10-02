@@ -163,17 +163,22 @@ function tickCat(dt, t) {
   g.position.y = 0;
   g.position.x = 0;
 
-  if (petState === "idle") {
-    // 睡觉：侧躺 + 闭眼 + 呼吸
+  if (petState === "idle" && !act3d) {
+    // 睡觉：侧躺 + 闭眼 + 呼吸（有临时动作时中断睡觉——点击会醒来）
     g.rotation.z = Math.PI / 2;
     g.position.y = -0.15;
     setEyes(false);
     const breathe = 1 + Math.sin(t * 1.6) * 0.025;
     body.scale.y = breathe;
-    body.scale.x = breathe * 0.98; // 呼吸时微胖
-    // 耳朵微微下垂
+    body.scale.x = breathe * 0.98;
     earL.rotation.x = Math.sin(t * 0.8) * 0.05;
     earR.rotation.x = -Math.sin(t * 0.8) * 0.05;
+  } else if (petState === "idle" && act3d) {
+    // 醒来（临时动作中）：坐直 + 睁眼——反应播完后自动回睡
+    g.rotation.z = 0;
+    g.position.y = 0;
+    setEyes(true);
+    body.scale.set(1, 1, 1);
   } else {
     setEyes(true);
     body.scale.set(1, 1, 1);

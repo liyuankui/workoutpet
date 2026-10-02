@@ -408,6 +408,12 @@ function main() {
     const result = dispatch(machine, ev, cfgOverride ?? machineCfg, exercises, Math.random, (ex) => balancedPick(ex));
     machine = result.state;
 
+    // idle 点猫 = 反应池（渲染端播跳/蹭/喵/滚——醒来再睡）
+    if (result.wiggle && prevPet === "idle") {
+      const REACTIONS = ["wiggle", "jump", "meow", "roll"];
+      win.webContents.send("pet-reaction", REACTIONS[Math.floor(Math.random() * REACTIONS.length)]!);
+    }
+
     if (result.checkedIn) {
       appendCheckIn(DB_PATH, {
         date: localDateKey(Date.now()),
