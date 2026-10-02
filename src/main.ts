@@ -609,8 +609,24 @@ function main() {
     rlog(`当前猫 · ${persona.name["zh-CN"]}（${per.name["zh-CN"]}）`);
   };
   applyCat();
-  const trayIcon = () =>
-    nativeImage.createFromPath(join(app.getAppPath(), "assets", "cats", "sit.png")).resize({ width: 18, height: 18 });
+  // 程序化托盘图标：16×16 橙色圆点（v0.18 弃外部素材）
+  const trayIcon = () => {
+    const size = 16;
+    const buf = Buffer.alloc(size * size * 4, 0);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const dx = x - size / 2 + 0.5, dy = y - size / 2 + 0.5;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const i = (y * size + x) * 4;
+        if (dist < size / 2 - 1) {
+          buf[i] = 245; buf[i + 1] = 192; buf[i + 2] = 122; buf[i + 3] = 255; // 橙 #f5c07a
+        } else if (dist < size / 2) {
+          buf[i] = 217; buf[i + 1] = 155; buf[i + 2] = 78; buf[i + 3] = 255; // 深橘边
+        }
+      }
+    }
+    return nativeImage.createFromBuffer(buf, { width: size, height: size });
+  };
   tray = new Tray(trayIcon());
 
   /** 逐段语义化版本比较（审计修复：字符串比较 0.10.x vs 0.9.x 会误判） */
