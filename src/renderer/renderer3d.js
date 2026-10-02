@@ -177,7 +177,8 @@ function buildCat() {
 
   catParts = { g, head, body, eyeL, eyeR, pupilL, pupilR, glintL, glintR, earL, earR, nose, tailSegs, legFL, legFR, legBL, legBR, belly,
     materials: { mBody, mDark, mLight, mEar, mNose } };
-  g.scale.setScalar(0.85); // 整体缩：确保坐+躺都在画面内
+  g.scale.setScalar(0.85);
+  g.rotation.y = -Math.PI / 2; // 面朝镜头：脸在 +X，转 -90° 使 +X→+Z（camera 方向）
   scene.add(g);
   return g;
 }
@@ -234,7 +235,7 @@ function tickCat(dt, t) {
   g.rotation.z = 0;
   g.position.y = 0;
   g.position.x = 0;
-  g.rotation.y = 0;
+  g.rotation.y = -Math.PI / 2;
   head.position.y = 0.72;
   head.rotation.y = 0;
   earL.rotation.z = -0.2;
@@ -313,7 +314,7 @@ function tickCat(dt, t) {
       legBR.position.y = 0.07 + Math.max(0, -walkCycle) * 0.05;
       g.position.y = Math.abs(Math.sin(t * 7)) * 0.025;
       head.position.y = 0.72 + Math.sin(t * 3.5) * 0.012;
-      g.rotation.y = Math.sin(t * 1.5) * 0.03; // 轻微摇摆
+      g.rotation.y = -Math.PI / 2 + Math.sin(t * 1.5) * 0.03; // 轻微摇摆
     }
   }
 
