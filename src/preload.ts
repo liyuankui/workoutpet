@@ -48,6 +48,14 @@ contextBridge.exposeInMainWorld("microPet", {
   fmt: (template: string, vars: Record<string, string | number>) => fmt(template, vars),
   // 反应池（纯函数：节流 + 随机）
   react: (lastReactAt: number, now: number) => react(lastReactAt, now),
+  petClick: () => ipcRenderer.send("pet-click"),
+  ready: () => ipcRenderer.send("pet-ready"),
+  bubbleBox: (on: boolean) => ipcRenderer.send("pet-bubble", on),
+  // 明信片（3D：main 请 renderer 作画 → dataURL 回传落盘）
+  onPostcard: (cb: (req: unknown) => void) => {
+    ipcRenderer.on("pet-postcard-render", (_e, req: unknown) => cb(req));
+  },
+  sendPostcard: (dataUrl: string) => ipcRenderer.send("pet-postcard-data", dataUrl),
   // 拖动（纯函数判定 + 信号式移动：坐标权威在主进程 getCursorScreenPoint）
   shouldDrag: (startX: number, startY: number, x: number, y: number) => shouldStartDrag(startX, startY, x, y),
   dragStart: () => ipcRenderer.send("pet-drag-start"),
