@@ -232,7 +232,7 @@ function main() {
     }, 500);
   });
 
-  const page = "renderer3d.html";
+  const page = "index.html";
   win.loadFile(join(APP_ROOT, "src", "renderer", page)).catch((err) =>
     console.error("[micro-pet] renderer 加载失败:", err),
   );
@@ -937,7 +937,7 @@ function main() {
   }
 
   function relaunchPage() {
-    const page = "renderer3d.html";
+    const page = "index.html";
     win.webContents.loadFile(join(APP_ROOT, "src", "renderer", page)).catch((err) =>
       console.error("[micro-pet] renderer 重载失败:", err),
     );

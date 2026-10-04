@@ -367,12 +367,12 @@ function loop() {
   requestAnimationFrame(loop);
   const dt = clock.getDelta();
   const t = clock.elapsedTime;
+  tickCat(dt, t); // 先跑状态动画（会重置 position）
   const actOffset = tickAct(performance.now());
   if (catParts && actOffset) {
     catParts.g.position.x = actOffset[0] / 100;
     catParts.g.position.y += actOffset[1] / 100;
   }
-  tickCat(dt, t);
 }
 loop();
 

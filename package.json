@@ -1,12 +1,12 @@
 {
   "name": "micro-pet",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "private": true,
-  "description": "微运动桌宠：像素猫示范坐姿微运动，摸头打卡，本地 streak",
+  "description": "\u5fae\u8fd0\u52a8\u684c\u5ba0\uff1a\u50cf\u7d20\u732b\u793a\u8303\u5750\u59ff\u5fae\u8fd0\u52a8\uff0c\u6478\u5934\u6253\u5361\uff0c\u672c\u5730 streak",
   "type": "module",
   "main": "dist/main.cjs",
   "scripts": {
-    "build": "bun run build:main && bun run build:preload && bun run build:renderer3d",
+    "build": "bun run build:main && bun run build:preload && bun run build:renderer2d",
     "build:main": "bun build src/main.ts --target=node --format=cjs --external electron --outfile=dist/main.cjs",
     "build:preload": "bun build src/preload.ts --target=node --format=cjs --external electron --outfile=dist/preload.cjs",
     "start": "bun run build && electron .",
@@ -14,7 +14,8 @@
     "typecheck": "bun x tsc --noEmit",
     "report": "bun run src/bin/micro-pet.ts report",
     "build:renderer3d": "bun build src/renderer/renderer3d.js --target=browser --outfile=dist/renderer3d.bundle.js",
-    "e2e": "bun run e2e/e2e.ts"
+    "e2e": "bun run e2e/e2e.ts",
+    "build:renderer2d": "bun build src/renderer/renderer2d.js --target=browser --outfile=dist/renderer2d.bundle.js"
   },
   "dependencies": {
     "@types/three": "^0.186.0",
