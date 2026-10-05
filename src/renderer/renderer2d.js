@@ -27,27 +27,14 @@ const COAT_COLORS = {
 };
 
 async function bakeSheet(name, meta, coatId) {
+  // 简化：直接用原始 sprite（palette swap 曾致 bake 后透明丢失——先出猫再调色）
   const img = new Image();
   await new Promise((resolve, reject) => {
     img.onload = resolve;
     img.onerror = () => reject(new Error("load " + meta.file));
     img.src = SHEET_INFO.pngs[name];
   });
-  const cv = document.createElement("canvas");
-  cv.width = img.width; cv.height = img.height;
-  const c = cv.getContext("2d");
-  c.drawImage(img, 0, 0);
-  const d = c.getImageData(0, 0, cv.width, cv.height);
-  const coat = COAT_COLORS[coatId] ?? COAT_COLORS.cream;
-  const lut = SHEET_INFO.luts[coatId] ?? {};
-  for (let i = 0; i < d.data.length; i += 4) {
-    if (!d.data[i + 3]) continue;
-    const hex = "#" + [d.data[i], d.data[i + 1], d.data[i + 2]].map((v) => v.toString(16).padStart(2, "0")).join("");
-    const dst = lut[hex];
-    if (dst) { const [r, g, b] = hexToRgb(dst); d.data[i] = r; d.data[i + 1] = g; d.data[i + 2] = b; }
-  }
-  c.putImageData(d, 0, 0);
-  return cv;
+  return img; // 直接返回 Image（drawImage 原样使用，保留透明度）
 }
 
 (async () => {
