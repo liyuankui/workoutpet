@@ -1,6 +1,4 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { strings, fmt } from "./core/i18n";
 import { react } from "./core/reactions";
 import { shouldStartDrag } from "./core/dragging";
@@ -61,25 +59,12 @@ contextBridge.exposeInMainWorld("microPet", {
   // 反应池（纯函数：节流 + 随机）
   react: (lastReactAt: number, now: number) => react(lastReactAt, now),
   // 2D sprite sheet：元数据 + LUT + PNG dataURL（asar 兼容）
-  sheets: () => {
-    const dir = join(__dirname, "..", "assets", "cats");
-    let meta: unknown = null;
-    try { meta = JSON.parse(readFileSync(join(dir, "sprites.json"), "utf8")); } catch { }
-    const swap = ((meta as { paletteSwap?: Record<string, string> })?.paletteSwap ?? {}) as Record<string, string>;
-    const luts: Record<string, Record<string, string>> = {};
-    for (const [coatId, coat] of Object.entries(COAT_MAPS)) {
-      luts[coatId] = {};
-      for (const [srcHex, slot] of Object.entries(swap)) {
-        const dst = slot === "body" ? coat.body : slot === "eye" ? "#3a2e28" : slot === "stripe" ? coat.dark : slot === "outline" ? coat.dark : "#4a3b32";
-        luts[coatId]![srcHex] = dst;
-      }
-    }
-    const pngs: Record<string, string> = {};
-    for (const [name, m] of Object.entries(((meta as { sheets?: Record<string, { file: string }> })?.sheets ?? {}))) {
-      try { pngs[name] = "data:image/png;base64," + readFileSync(join(dir, m.file)).toString("base64"); } catch { }
-    }
-    return { meta, luts, pngs };
-  },
+  sheets: () =>
+    ipcRenderer.sendSync("pet-sheets-meta") as {
+      meta: unknown;
+      luts: Record<string, Record<string, string>>;
+      pngs: Record<string, string>;
+    },
   petClick: () => ipcRenderer.send("pet-click"),
   ready: () => ipcRenderer.send("pet-ready"),
   bubbleBox: (on: boolean) => ipcRenderer.send("pet-bubble", on),

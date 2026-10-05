@@ -549,6 +549,35 @@ function main() {
 
   // ---------- IPC ----------
   ipcMain.on("pet-click", () => handle({ type: "PET", now: Date.now() }));
+  // 2D sprite sheet：sandbox preload 禁 node:fs → main 读盘经 sendSync 供
+  ipcMain.on("pet-sheets-meta", (e) => {
+    const dir = join(app.getAppPath(), "assets", "cats");
+    let meta: unknown = null;
+    try { meta = JSON.parse(readFileSync(join(dir, "sprites.json"), "utf8")); } catch { }
+    const swap = ((meta as { paletteSwap?: Record<string, string> })?.paletteSwap ?? {}) as Record<string, string>;
+    const COAT_MAPS: Record<string, Record<string, string>> = {
+      cream: { body: "#f5c07a", dark: "#d99b4e", light: "#fff1dc" },
+      void: { body: "#45414b", dark: "#2e2b33", light: "#5b5663" },
+      snow: { body: "#f7f5f2", dark: "#c9c4bd", light: "#ffffff" },
+      cow: { body: "#f7f5f2", dark: "#3d3a3f", light: "#ffffff" },
+      calico: { body: "#f5c07a", dark: "#3d3a3f", light: "#fff1dc" },
+      blue: { body: "#8f9aa8", dark: "#77828f", light: "#c3ccd6" },
+      siamese: { body: "#e8d5b5", dark: "#5a4636", light: "#f6ecd9" },
+    };
+    const luts: Record<string, Record<string, string>> = {};
+    for (const [coatId, coat] of Object.entries(COAT_MAPS)) {
+      luts[coatId] = {};
+      for (const [srcHex, slot] of Object.entries(swap)) {
+        const dst = slot === "body" ? coat.body! : slot === "eye" ? "#3a2e28" : slot === "stripe" ? coat.dark! : slot === "outline" ? coat.dark! : "#4a3b32";
+        luts[coatId]![srcHex] = dst;
+      }
+    }
+    const pngs: Record<string, string> = {};
+    for (const [name, m] of Object.entries(((meta as { sheets?: Record<string, { file: string }> })?.sheets ?? {}))) {
+      try { pngs[name] = "data:image/png;base64," + readFileSync(join(dir, m.file)).toString("base64"); } catch { }
+    }
+    e.returnValue = { meta, luts, pngs };
+  });
   ipcMain.on("pet-postcard-data", (_e, dataUrl: string) => {
     try {
       mkdirSync(POSTCARDS_DIR, { recursive: true });
