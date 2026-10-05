@@ -16,9 +16,9 @@
       "fps": 10
     },
     "sit": {
-      "file": "sit.gif",
-      "frameW": 46,
-      "frameH": 50,
+      "file": "walk.gif",
+      "frameW": 36,
+      "frameH": 30,
       "frames": 1,
       "fps": 1
     }
