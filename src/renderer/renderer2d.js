@@ -1,251 +1,197 @@
-// 2D 像素猫渲染层 v2.0 —— Shepardskin sprite（CC0）+ palette swap 7 花色 + 安静哲学
+// 渲染端：像素猫动画 + 气泡 + 点击互动反应（状态权威在 main 进程，sprite/文案经 preload 注入）
 /* global microPet */
-const canvas = document.getElementById("view2d");
+const { PALETTE, GRID, FRAMES, ANIMS } = microPet.sprites();
+
+const canvas = document.getElementById("cat");
 const ctx = canvas.getContext("2d");
 const bubble = document.getElementById("bubble");
 const titleEl = bubble.querySelector(".title");
 const cueEl = bubble.querySelector(".cue");
 
-const SCALE = 2;
-const SHEET_INFO = microPet.sheets();
-let coatNow = "cream";
-const sheetCache = {}; // coatId → { walk, run, sit }
-let sheetReady = false;
+const SCALE = 7; // 16 × 7 = 112px
+const LIFT_PAD = 26; // canvas 顶部跳跃/浮动预留：跳 18px + 腾空拉伸(sy1.08 再吃 ~8px)，无此垫即被 canvas 裁
 
-function hexToRgb(hex) {
-  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
-}
-
-const COAT_COLORS = {
-  cream: { body: "#f5c07a", dark: "#d99b4e", light: "#fff1dc" },
-  void: { body: "#45414b", dark: "#2e2b33", light: "#5b5663" },
-  snow: { body: "#f7f5f2", dark: "#c9c4bd", light: "#ffffff" },
-  cow: { body: "#f7f5f2", dark: "#3d3a3f", light: "#ffffff" },
-  calico: { body: "#f5c07a", dark: "#3d3a3f", light: "#fff1dc" },
-  blue: { body: "#8f9aa8", dark: "#77828f", light: "#c3ccd6" },
-  siamese: { body: "#e8d5b5", dark: "#5a4636", light: "#f6ecd9" },
-};
-
-async function bakeSheet(name, meta, coatId) {
-  const img = new Image();
-  await new Promise((resolve, reject) => {
-    img.onload = resolve;
-    img.onerror = () => reject(new Error("load " + meta.file));
-    img.src = SHEET_INFO.pngs[name];
-  });
-  // Shepardskin sprite 无 alpha（背景=#a475a0=猫体色）→ 两步：泛洪去背景 → palette swap 换色
-  const cv = document.createElement("canvas");
-  cv.width = img.width; cv.height = img.height;
-  const c = cv.getContext("2d");
-  c.drawImage(img, 0, 0);
-  const d = c.getImageData(0, 0, cv.width, cv.height);
-  const px = d.data;
-  const W = cv.width, H = cv.height;
-  const BG = [0xa4, 0x75, 0xa0]; // 紫灰背景（Shepardskin 原色）
-  const TOL = 35;
-  const visited = new Uint8Array(W * H);
-  const stack = [];
-  for (let x = 0; x < W; x++) { stack.push(x, 0, x, H - 1); }
-  for (let y = 0; y < H; y++) { stack.push(0, y, W - 1, y); }
-  while (stack.length > 0) {
-    const y = stack.pop(); const x = stack.pop();
-    if (x < 0 || x >= W || y < 0 || y >= H) continue;
-    const idx = y * W + x;
-    if (visited[idx]) continue;
-    visited[idx] = 1;
-    const pi = idx * 4;
-    if (Math.abs(px[pi] - BG[0]) < TOL && Math.abs(px[pi+1] - BG[1]) < TOL && Math.abs(px[pi+2] - BG[2]) < TOL) {
-      px[pi + 3] = 0; // 透明
-      stack.push(x-1, y, x+1, y, x, y-1, x, y+1);
-    }
-  }
-  // palette swap（泛洪后，只改不透明像素）
-  const lut = SHEET_INFO.luts[coatId] ?? {};
-  for (let i = 0; i < px.length; i += 4) {
-    if (px[i + 3] === 0) continue;
-    const hex = "#" + [px[i], px[i+1], px[i+2]].map(v => v.toString(16).padStart(2,"0")).join("");
-    const dst = lut[hex];
-    if (dst) {
-      px[i] = parseInt(dst.slice(1,3),16);
-      px[i+1] = parseInt(dst.slice(3,5),16);
-      px[i+2] = parseInt(dst.slice(5,7),16);
-    }
-  }
-  c.putImageData(d, 0, 0);
-  return cv;
-}
-
-(async () => {
-  if (!SHEET_INFO.meta) return;
-  for (const coatId of Object.keys(COAT_COLORS)) {
-    sheetCache[coatId] = {};
-    for (const [name, meta] of Object.entries(SHEET_INFO.meta.sheets)) {
-      try { sheetCache[coatId][name] = await bakeSheet(name, meta, coatId); } catch { }
-    }
-  }
-  sheetReady = true;
-})();
-
-let currentSheet = "sit";
-let currentFrame = 0;
-let frameTimer = 0;
-
-function drawSheet(name, frame, ox = 0, oy = 0) {
-  const meta = SHEET_INFO.meta?.sheets[name];
-  const cv = (sheetCache[coatNow] ?? {})[name];
-  if (!meta || !cv) return false;
-  const f = Math.max(0, Math.min(Math.floor(frame), meta.frames - 1));
-  ctx.imageSmoothingEnabled = false;
-  const dw = meta.frameW * SCALE, dh = meta.frameH * SCALE;
-  ctx.drawImage(cv, f * meta.frameW, 0, meta.frameW, meta.frameH, ox, oy + 8, dw, dh);
-  return true;
-}
-
-// ---------- 状态动画 ----------
 let petState = "idle";
-let walking = false;
-let act2d = null;
-let personaPool = "clingy";
-let locale2d = "zh-CN";
-let dragSt = null;
-let bubbleOn = false;
-const clock = { t: 0, last: performance.now() };
+let locale = "zh-CN";
+let animStart = performance.now();
 
-function setPet(state) { petState = state; }
+// 点击互动反应
+let reaction = null;        // { type, start, duration }
+let lastReactAt = 0;
 
-function tickPet(dt) {
-  const t = clock.t;
-  let sheet = "sit", frame = 0, ox = 0, oy = 0;
-  const meta = SHEET_INFO.meta?.sheets;
-
-  if (petState === "idle" && !act2d) {
-    // 睡觉：静止（安静哲学——不动画）
-    sheet = "sit"; frame = 0;
-    oy = 0;
-  } else if (petState === "idle" && act2d) {
-    sheet = "sit"; frame = 0; // 醒了但坐着
-  } else if (petState === "walk" || walking) {
-    sheet = "walk";
-    frame = Math.floor(t * (meta?.walk?.fps ?? 8)) % (meta?.walk?.frames ?? 1);
-    oy = Math.round(Math.sin(t * 8) * 2); // 走路颠簸
-  } else if (petState === "run") {
-    sheet = "run";
-    frame = Math.floor(t * (meta?.run?.fps ?? 10)) % (meta?.run?.frames ?? 1);
-  } else if (petState === "remind" || petState === "session") {
-    sheet = "run";
-    frame = Math.floor(t * 4) % (meta?.run?.frames ?? 1);
-    ox = -Math.round(4 * Math.sin(t * 2.7));
-  } else if (petState === "happy") {
-    sheet = "walk";
-    frame = 0;
-    oy = -Math.round(6 * Math.abs(Math.sin(t * 4)));
-  } else if (petState === "cling") {
-    sheet = "sit"; frame = 0;
-    ox = Math.round(3 * Math.sin(t * 1.5));
-  }
-
-  // act2d 覆盖
-  if (act2d) {
-    const at = (performance.now() - act2d.start) / 1000;
-    if (act2d.type === "jump") { if (at > 1.0) { act2d = null; } else { oy = -Math.round(12 * Math.sin(Math.PI * at / 1.0)); sheet = "sit"; frame = 0; } }
-    else if (act2d.type === "roll") { if (at > 1.8) { act2d = null; } else { ox = Math.round(6 * Math.sin(at * 5)); sheet = "run"; frame = Math.floor(t * 12) % (meta?.run?.frames ?? 1); } }
-    else if (act2d.type === "wiggle") { if (at > 0.8) { act2d = null; } else { ox = Math.round(5 * (Math.floor(performance.now() / 80) % 2 ? 1 : -1)); sheet = "sit"; frame = 0; } }
-    else if (act2d.type === "meow") { if (at > 0.9) { act2d = null; } else { oy = -Math.round(3 * Math.sin(Math.PI * at / 0.9)); sheet = "sit"; frame = 0; } }
-    else if (act2d.type === "hop") { if (at > 5) { act2d = null; } else { const ph = at % 2.0; oy = ph < 0.35 ? -Math.round(12 * Math.sin(Math.PI * ph / 0.35)) : ph < 0.7 ? -Math.round(10 * Math.sin(Math.PI * (ph - 0.35) / 0.35)) : 0; sheet = "sit"; frame = 0; } }
-    else if (act2d.type === "mouse") { if (at > 6) { act2d = null; } else { sheet = "run"; frame = Math.floor(t * 10) % (meta?.run?.frames ?? 1); if (at >= 4.5 && at < 5.5) oy = -Math.round(12 * Math.sin(Math.PI * (at - 4.5))); } }
-  }
-
+function drawFrame(name, ox, oy, sq) {
+  // ox/oy 为像素偏移（历史 bug：曾按格数 ×SCALE 放大，跳一下 6px 变 42px 顶出窗口被裁）
+  // sq: {sx, sy} 挤压拉伸（squash & stretch）——以猫底部中心为轴，压扁时脚不离地
+  const frame = FRAMES[name];
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawSheet(sheet, frame, ox, oy);
+  if (sq) {
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height);
+    ctx.scale(sq.sx, sq.sy);
+    ctx.translate(-canvas.width / 2, -canvas.height);
+  }
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const color = PALETTE[frame[y][x]];
+      if (!color) continue;
+      ctx.fillStyle = color;
+      ctx.fillRect(x * SCALE + ox, y * SCALE + oy + LIFT_PAD, SCALE, SCALE);
+    }
+  }
+  if (sq) ctx.restore();
 }
 
 function loop(now) {
+  if (reaction) {
+    const p = (now - reaction.start) / reaction.duration; // 0→1
+    if (p >= 1) {
+      reaction = null;
+    } else if (reaction.type === "wiggle") {
+      drawFrame("idleA", Math.floor(now / 90) % 2 === 0 ? 0 : 1, 0);
+    } else if (reaction.type === "jump") {
+      // 可爱第一性：跳要高、要有弹性——蓄力压扁 → 腾空拉长 → 落地回弹
+      const lift = Math.round(18 * Math.sin(Math.PI * p));
+      let sq = null;
+      if (p < 0.18) sq = { sx: 1.12, sy: 0.86 };        // 蓄力：压扁
+      else if (p > 0.85) sq = { sx: 1.1, sy: 0.9 };     // 落地：回弹压扁
+      else sq = { sx: 0.94, sy: 1.08 };                  // 腾空：拉长
+      drawFrame("idleA", 0, -lift, sq);
+    } else if (reaction.type === "meow") {
+      drawFrame("idleA", 0, 0); // 气泡在 click 时已弹出
+    } else if (reaction.type === "roll") {
+      drawFrame("roll", Math.floor(now / 140) % 2 === 0 ? 0 : 1, 0); // 侧躺打滚抖
+    }
+    if (reaction) {
+      requestAnimationFrame(loop);
+      return;
+    }
+  }
+  const anim = ANIMS[petState] ?? ANIMS.idle;
+  const total = anim.reduce((s, f) => s + f[1], 0);
+  let t = (now - animStart) % total;
+  // 呼吸浮动：静止≠死物（仅闲坐/撒娇，动作状态不乱浮）
+  const bob = petState === "idle" || petState === "cling" ? Math.round(Math.sin(now / 650) * 1.5) : 0;
+  for (const [name, dur, ox, oy] of anim) {
+    if (t < dur) {
+      drawFrame(name, ox, oy + bob);
+      break;
+    }
+    t -= dur;
+  }
   requestAnimationFrame(loop);
-  const dt = (now - clock.last) / 1000;
-  clock.last = now;
-  clock.t += dt;
-  tickPet(dt);
 }
 requestAnimationFrame(loop);
 
-// ---------- 行为事件 ----------
-microPet.onState((msg) => {
-  locale2d = msg.locale ?? locale2d;
-  if (msg.pool) personaPool = msg.pool;
-  if (msg.coatId && msg.coatId !== coatNow) { coatNow = msg.coatId; }
-  walking = !!msg.walking;
-  if (walking) setPet("walk"); else setPet(msg.pet);
-  const s = microPet.strings(locale2d);
-  if (msg.walking) hideBubble();
-  else if (msg.pet === "remind" && msg.exercise) showBubble(`${msg.exercise.emoji} ${msg.exercise.name} · ${s.bubble.letsGo}`, msg.exercise.cue);
-  else if (msg.pet === "happy") { showBubble(microPet.fmt(s.bubble.good, { n: msg.streakDays }), s.bubble.petMe); setTimeout(() => { if (petState !== "happy") hideBubble(); }, 2600); }
-  else if (msg.pet === "cling") { const pool = (s.bubble.clingPools || {})[personaPool] || s.bubble.cling || []; if (pool.length) showBubble(pool[Math.floor(Math.random() * pool.length)], ""); setTimeout(() => { if (petState === "cling") hideBubble(); }, 8000); }
-  else if (msg.pet === "idle") setTimeout(() => { if (petState === "idle") hideBubble(); }, 300);
-});
-microPet.onHint((h) => { showBubble(h.title, h.cue); setTimeout(() => hideBubble(), 4500); });
-
 function showBubble(title, cue) {
-  titleEl.textContent = title; cueEl.textContent = cue ?? ""; cueEl.style.display = cue ? "" : "none";
-  bubble.classList.add("show"); if (!bubbleOn) { bubbleOn = true; microPet.bubbleBox(true); }
+  titleEl.textContent = title;
+  cueEl.textContent = cue ?? "";
+  cueEl.style.display = cue ? "" : "none";
+  bubble.classList.add("show");
 }
 function hideBubble() {
-  bubble.classList.remove("show"); if (bubbleOn) { bubbleOn = false; microPet.bubbleBox(false); }
+  bubble.classList.remove("show");
 }
 
-function playAct2d(type) {
-  act2d = { type, start: performance.now() };
-}
-
+// 演示菜单：直发反应（绕过节流——手动触发测试用）
 microPet.onReaction((type) => {
-  if (["wiggle", "jump", "meow", "roll"].includes(type)) {
-    playAct2d(type);
-    if (type === "meow") {
-      const strs = microPet.strings(locale2d);
-      const pool = (strs.bubble.meowPools || {})[personaPool] || [strs.meow];
-      showBubble(pool[Math.floor(Math.random() * pool.length)], "");
-      setTimeout(() => hideBubble(), 900);
-    }
+  const now = performance.now();
+  if (!["wiggle", "jump", "meow", "roll"].includes(type)) return;
+  reaction = { type, start: now, duration: type === "meow" ? 900 : 700 };
+  if (type === "meow") {
+    showBubble(microPet.strings(locale).meow, "");
+    setTimeout(() => { if (petState === "idle" || petState === "happy") hideBubble(); }, 900);
   }
 });
-microPet.onSkit((msg) => { playAct2d(msg.type); });
-microPet.onPoseDemo((kind) => { playAct2d(kind === "walk" ? "wiggle" : kind); });
 
-// 明信片
-microPet.onPostcard((req) => {
-  const pc = document.createElement("canvas");
-  pc.width = 128; pc.height = 96;
-  const pctx = pc.getContext("2d");
-  const sp = req.spot;
-  pctx.fillStyle = sp.sky; pctx.fillRect(0, 0, 128, 96);
-  pctx.fillStyle = sp.land; pctx.fillRect(0, 64, 128, 32);
-  pctx.fillStyle = "rgba(255,255,255,0.7)";
-  pctx.fillRect(8, 8, 2, 2); pctx.fillRect(24, 14, 2, 2); pctx.fillRect(110, 10, 2, 2);
-  pctx.fillStyle = sp.land;
-  switch (sp.shape) {
-    case "pagoda": pctx.fillRect(56, 24, 16, 40); pctx.fillRect(52, 34, 24, 4); break;
-    case "towers": pctx.fillRect(30, 30, 12, 34); pctx.fillRect(48, 16, 16, 48); break;
-    default: pctx.fillRect(40, 40, 50, 24);
-  }
-  try { pctx.imageSmoothingEnabled = false; pctx.drawImage(canvas, 92, 48, 27, 31); } catch { }
-  microPet.sendPostcard(pc.toDataURL("image/png"));
+// 托盘操作后的非模态提示（如复制配置 Prompt 后告诉用户粘给谁）
+microPet.onHint((h) => {
+  showBubble(h.title, h.cue);
+  setTimeout(() => { if (petState === "idle" || petState === "happy") hideBubble(); }, 4500);
 });
 
-// 拖动
-canvas.addEventListener("pointerdown", (e) => {
+microPet.onState((msg) => {
+  locale = msg.locale ?? locale;
+  if (msg.pet !== petState) {
+    petState = msg.pet;
+    animStart = performance.now();
+  }
+  const s = microPet.strings(locale);
+  if (msg.pet === "remind" && msg.exercise) {
+    showBubble(`${msg.exercise.emoji} ${msg.exercise.name} · ${s.bubble.letsGo}`, msg.exercise.cue);
+  } else if (msg.pet === "session" && msg.exercise) {
+    // F25 陪练：倒数 + 当前步骤（主进程每秒推送）；再点猫提前结束也算完成
+    showBubble(`⏱ ${msg.sessionRemainSec ?? "?"}s · ${msg.exercise.emoji} ${msg.exercise.name}`, msg.sessionStep ?? "");
+  } else if (msg.pet === "cling") {
+    // 撒娇赖留：每次 broadcast（含 10 分钟轮换）随机换一句软话——可爱不指责
+    const pool = s.bubble.cling ?? [];
+    const line = pool.length ? pool[Math.floor(Math.random() * pool.length)] : s.bubble.petMe;
+    const ex = msg.exercise;
+    showBubble(ex ? `${line}（${ex.emoji} ${ex.name}）` : line, "");
+  } else if (msg.pet === "happy") {
+    // F28 举牌：今日 N/M（达标庆祝）；连续天数并到副行
+    const n = msg.todayCount ?? 0;
+    const m = msg.todayGoal;
+    const board = m && m > 0
+      ? (n >= m ? s.bubble.goalMet : microPet.fmt(s.bubble.todayGoalN, { n, m }))
+      : microPet.fmt(s.bubble.todayN, { n });
+    const cue = msg.streakDays > 0 ? `${microPet.fmt(s.bubble.good, { n: msg.streakDays })} · ${s.bubble.petMe}` : s.bubble.petMe;
+    showBubble(board, cue);
+    setTimeout(hideBubble, 3000);
+  } else if (msg.pet === "idle") {
+    setTimeout(() => { if (petState === "idle") hideBubble(); }, 300);
+  }
+});
+
+// 拖动：按住猫移动即拖窗口（macOS non-activating 窗口 CSS drag 失效，走手动增量）
+// 位移 ≥ 阈值才算拖动；轻点仍触发 click（打卡/反应），拖完的尾随 click 吞掉
+const stage = document.getElementById("stage");
+let drag = null;               // { startX, startY, moved }
+let suppressClickUntil = 0;
+
+stage.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return;
-  dragSt = { startX: e.clientX, startY: e.clientY, moved: false };
+  drag = { startX: e.clientX, startY: e.clientY, moved: false };
 });
+// move/up 绑 window 且不用 setPointerCapture：capture 会改写后续事件目标，
+// 浏览器合成的 click 不再落在 canvas 上 → 打卡/互动全失效（v0.5.1 回归教训）
+// 位移不用 movementX（窗口自身移动后 macOS 补发 mousemove 会污染其语义）：
+// 每帧只发信号，坐标权威在主进程 getCursorScreenPoint，按屏幕位绝对差移动，幂等
 window.addEventListener("pointermove", (e) => {
-  if (!dragSt) return;
-  if (!dragSt.moved) {
-    if (!microPet.shouldDrag(dragSt.startX, dragSt.startY, e.clientX, e.clientY)) return;
-    dragSt.moved = true; microPet.dragStart();
+  if (!drag) return;
+  if (!drag.moved) {
+    if (!microPet.shouldDrag(drag.startX, drag.startY, e.clientX, e.clientY)) return;
+    drag.moved = true;
+    microPet.dragStart();
+    document.body.classList.add("dragging");
   }
   microPet.dragMove();
 });
-function endDrag() { dragSt = null; }
+function endDrag() {
+  if (!drag) return;
+  if (drag.moved) suppressClickUntil = performance.now() + 300; // pointerup 后 click 仍会派发
+  drag = null;
+  document.body.classList.remove("dragging");
+}
 window.addEventListener("pointerup", endDrag);
 window.addEventListener("pointercancel", endDrag);
-canvas.addEventListener("click", () => { if (dragSt?.moved) return; microPet.petClick(); });
+window.addEventListener("blur", endDrag); // 失焦兜底：不许拖拽状态卡死
+
+canvas.addEventListener("click", () => {
+  if (performance.now() < suppressClickUntil) return; // 刚拖完，不是点击
+  const now = performance.now();
+  if (petState === "remind" || petState === "cling" || petState === "session") {
+    microPet.petClick(); // remind/cling 点 = 开始会话；session 点 = 提前结束（也算完成）
+    return;
+  }
+  // ：idle/happy 点击 → 随机反应池（500ms 节流）
+  const r = microPet.react(lastReactAt, now);
+  if (!r) return;
+  lastReactAt = now;
+  reaction = { type: r, start: now, duration: r === "meow" ? 900 : 700 };
+  if (r === "meow") {
+    showBubble(microPet.strings(locale).meow, "");
+    setTimeout(() => { if (petState === "idle" || petState === "happy") hideBubble(); }, 900);
+  }
+});
 
 microPet.ready();

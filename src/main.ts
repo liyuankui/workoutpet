@@ -126,8 +126,8 @@ if (!app.requestSingleInstanceLock()) {
 
 // 窗口紧贴猫（遮盖最小化，F34）：idle 134×164（猫 128×154+边）；气泡靠动态扩窗
 // remind/满态 368×232（气泡 max-width 240 + 猫 128；高=气泡 64+猫 154+边）
-const CAT_W = 98, CAT_H = 128;
-const FULL_W = 340, FULL_H = 196;
+const CAT_W = 134, CAT_H = 164;
+const FULL_W = 368, FULL_H = 232;
 
 let tray: Tray | null = null;
 

@@ -1,6 +1,6 @@
 {
   "name": "micro-pet",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "private": true,
   "description": "\u5fae\u8fd0\u52a8\u684c\u5ba0\uff1a\u50cf\u7d20\u732b\u793a\u8303\u5750\u59ff\u5fae\u8fd0\u52a8\uff0c\u6478\u5934\u6253\u5361\uff0c\u672c\u5730 streak",
   "type": "module",

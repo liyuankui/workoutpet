@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 import { strings, fmt } from "./core/i18n";
 import { react } from "./core/reactions";
 import { shouldStartDrag } from "./core/dragging";
+import { PALETTE, GRID, FRAMES } from "./core/pixelcat";
+import { ANIMS } from "./core/anims";
 
 const COAT_MAPS: Record<string, { body: string; dark: string; light: string }> = {
   cream: { body: "#f5c07a", dark: "#d99b4e", light: "#fff1dc" },
@@ -58,13 +60,8 @@ contextBridge.exposeInMainWorld("microPet", {
   fmt: (template: string, vars: Record<string, string | number>) => fmt(template, vars),
   // 反应池（纯函数：节流 + 随机）
   react: (lastReactAt: number, now: number) => react(lastReactAt, now),
-  // 2D sprite sheet：元数据 + LUT + PNG dataURL（asar 兼容）
-  sheets: () =>
-    ipcRenderer.sendSync("pet-sheets-meta") as {
-      meta: unknown;
-      luts: Record<string, Record<string, string>>;
-      pngs: Record<string, string>;
-    },
+  // 像素猫 sprite（字符画帧 + 动画表，v0.7.2 原始版）
+  sprites: () => ({ PALETTE, GRID, FRAMES, ANIMS }),
   petClick: () => ipcRenderer.send("pet-click"),
   ready: () => ipcRenderer.send("pet-ready"),
   bubbleBox: (on: boolean) => ipcRenderer.send("pet-bubble", on),
