@@ -27,14 +27,52 @@ const COAT_COLORS = {
 };
 
 async function bakeSheet(name, meta, coatId) {
-  // 简化：直接用原始 sprite（palette swap 曾致 bake 后透明丢失——先出猫再调色）
   const img = new Image();
   await new Promise((resolve, reject) => {
     img.onload = resolve;
     img.onerror = () => reject(new Error("load " + meta.file));
     img.src = SHEET_INFO.pngs[name];
   });
-  return img; // 直接返回 Image（drawImage 原样使用，保留透明度）
+  // Shepardskin sprite 无 alpha（背景=#a475a0=猫体色）→ 两步：泛洪去背景 → palette swap 换色
+  const cv = document.createElement("canvas");
+  cv.width = img.width; cv.height = img.height;
+  const c = cv.getContext("2d");
+  c.drawImage(img, 0, 0);
+  const d = c.getImageData(0, 0, cv.width, cv.height);
+  const px = d.data;
+  const W = cv.width, H = cv.height;
+  const BG = [0xa4, 0x75, 0xa0]; // 紫灰背景（Shepardskin 原色）
+  const TOL = 35;
+  const visited = new Uint8Array(W * H);
+  const stack = [];
+  for (let x = 0; x < W; x++) { stack.push(x, 0, x, H - 1); }
+  for (let y = 0; y < H; y++) { stack.push(0, y, W - 1, y); }
+  while (stack.length > 0) {
+    const y = stack.pop(); const x = stack.pop();
+    if (x < 0 || x >= W || y < 0 || y >= H) continue;
+    const idx = y * W + x;
+    if (visited[idx]) continue;
+    visited[idx] = 1;
+    const pi = idx * 4;
+    if (Math.abs(px[pi] - BG[0]) < TOL && Math.abs(px[pi+1] - BG[1]) < TOL && Math.abs(px[pi+2] - BG[2]) < TOL) {
+      px[pi + 3] = 0; // 透明
+      stack.push(x-1, y, x+1, y, x, y-1, x, y+1);
+    }
+  }
+  // palette swap（泛洪后，只改不透明像素）
+  const lut = SHEET_INFO.luts[coatId] ?? {};
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] === 0) continue;
+    const hex = "#" + [px[i], px[i+1], px[i+2]].map(v => v.toString(16).padStart(2,"0")).join("");
+    const dst = lut[hex];
+    if (dst) {
+      px[i] = parseInt(dst.slice(1,3),16);
+      px[i+1] = parseInt(dst.slice(3,5),16);
+      px[i+2] = parseInt(dst.slice(5,7),16);
+    }
+  }
+  c.putImageData(d, 0, 0);
+  return cv;
 }
 
 (async () => {
