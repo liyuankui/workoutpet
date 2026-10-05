@@ -9,7 +9,8 @@ const titleEl = bubble.querySelector(".title");
 const cueEl = bubble.querySelector(".cue");
 
 const SCALE = 7; // 16 × 7 = 112px
-const LIFT_PAD = 26; // canvas 顶部跳跃/浮动预留：跳 18px + 腾空拉伸(sy1.08 再吃 ~8px)，无此垫即被 canvas 裁
+const LIFT_PAD = 20; // 顶部跳跃空间（最高 18px 弧线）
+const X_PAD = 8;     // 左右各 8px（wiggle ±5 / roll ±6 / cling ±2 不裁边）
 
 let petState = "idle";
 let locale = "zh-CN";
@@ -35,7 +36,7 @@ function drawFrame(name, ox, oy, sq) {
       const color = PALETTE[frame[y][x]];
       if (!color) continue;
       ctx.fillStyle = color;
-      ctx.fillRect(x * SCALE + ox, y * SCALE + oy + LIFT_PAD, SCALE, SCALE);
+      ctx.fillRect(x * SCALE + ox + X_PAD, y * SCALE + oy + LIFT_PAD, SCALE, SCALE);
     }
   }
   if (sq) ctx.restore();
