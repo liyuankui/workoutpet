@@ -574,7 +574,7 @@ function main() {
     }
     const pngs: Record<string, string> = {};
     for (const [name, m] of Object.entries(((meta as { sheets?: Record<string, { file: string }> })?.sheets ?? {}))) {
-      try { pngs[name] = "data:image/png;base64," + readFileSync(join(dir, m.file)).toString("base64"); } catch { }
+      try { pngs[name] = "data:image/gif;base64," + readFileSync(join(dir, m.file)).toString("base64"); } catch { }
     }
     e.returnValue = { meta, luts, pngs };
   });
