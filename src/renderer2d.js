@@ -134,8 +134,9 @@ microPet.onHint((h) => {
 microPet.onState((msg) => {
   locale = msg.locale ?? locale;
   if (msg.coatId && msg.coatId !== coatId) applyCoat(msg.coatId);
-  if (msg.pet !== petState) {
-    petState = msg.pet;
+  const shown = msg.walking ? 'walk' : msg.pet;
+  if (shown !== petState) {
+    petState = shown;
     animStart = performance.now();
   }
   const s = microPet.strings(locale);
@@ -216,32 +217,5 @@ canvas.addEventListener("click", () => {
     setTimeout(() => { if (petState === "idle" || petState === "happy") hideBubble(); }, 900);
   }
 });
-
-// 旅行明信片
-if (typeof microPet.onPostcard === "function") {
-  microPet.onPostcard((req) => {
-    const pc = document.createElement("canvas");
-    pc.width = 128; pc.height = 96;
-    const pctx = pc.getContext("2d");
-    const sp = req.spot;
-    pctx.fillStyle = sp.sky; pctx.fillRect(0, 0, 128, 96);
-    pctx.fillStyle = sp.land; pctx.fillRect(0, 64, 128, 32);
-    pctx.fillStyle = sp.land;
-    switch (sp.shape) {
-      case "pagoda": pctx.fillRect(56, 24, 16, 40); break;
-      case "towers": pctx.fillRect(30, 30, 12, 34); pctx.fillRect(48, 16, 16, 48); break;
-      default: pctx.fillRect(40, 40, 50, 24);
-    }
-    const frame = FRAMES.idleA;
-    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
-      const ch = frame[y][x];
-      const color = activePalette[ch];
-      if (!color) continue;
-      pctx.fillStyle = color;
-      pctx.fillRect(90 + x * 2, 52 + y * 2, 2, 2);
-    }
-    microPet.sendPostcard(pc.toDataURL("image/png"));
-  });
-}
 
 microPet.ready();

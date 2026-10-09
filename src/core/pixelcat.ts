@@ -34,6 +34,46 @@ const IDLE_A = [
   "................",
 ];
 
+/** 走路帧 A（左前腿伸） */
+const WALK_A = [
+  "................",
+  "...KK....KK.....",
+  "..KPPK..KPPK....",
+  "..KOOOOOOOOOOK..",
+  "..KOOEOOOOEOOK..",
+  "..KOOOOPPOOOOK..",
+  "..KOOOOOOOOOOK..",
+  ".KKOOOOOOOOOOK..",
+  ".KOOOLLLLOOOOK..",
+  ".KOOOLLLLOOOOK..",
+  ".KOOOOOOOOOOOK.K",
+  ".KOOOOOOOOOOOK..",
+  ".KLLKLLLLLLKLLK.",
+  "..KKKKKKKKKKKK..",
+  "................",
+  "................",
+];
+
+/** 走路帧 B（右前腿伸） */
+const WALK_B = [
+  "................",
+  "...KK....KK.....",
+  "..KPPK..KPPK....",
+  "..KOOOOOOOOOOK..",
+  "..KOOEOOOOEOOK..",
+  "..KOOOOPPOOOOK..",
+  "..KOOOOOOOOOOK..",
+  ".KKOOOOOOOOOOK..",
+  ".KOOOLLLLOOOOK..",
+  ".KOOOLLLLOOOOK..",
+  ".KOOOOOOOOOOOK.K",
+  ".KOOOOOOOOOOOK..",
+  ".KLLKLLLLLLKLLK.",
+  "................",
+  "..KKKKKKKKKKKK..",
+  "................",
+];
+
 /** 静坐（尾上摆） */
 const IDLE_WAG = [
   "................",

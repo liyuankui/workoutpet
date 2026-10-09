@@ -4,6 +4,10 @@ export type AnimStep = [frame: string, durMs: number, ox: number, oy: number];
 export type AnimTable = Record<string, AnimStep[]>;
 
 export const ANIMS: AnimTable = {
+  walk: [
+    ["walkA", 150, 0, 0],
+    ["walkB", 150, 0, 0],
+  ],
   idle: [
     ["idleA", 1100, 0, 0],
     ["idleWag", 350, 0, 0],
